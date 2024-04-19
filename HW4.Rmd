@@ -1,0 +1,89 @@
+---
+title: "HW4"
+author: "Xiayuanshan Gao"
+date: "2024-04-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=10000000)
+library(RSocrata)
+library(tidyverse)
+library(kableExtra)
+library(caret)
+library(knitr) 
+library(pscl)
+library(plotROC)
+library(pROC)
+library(lubridate)
+
+palette5 <- c("#eff3ff","#bdd7e7","#6baed6","#3182bd","#08519c")
+palette4 <- c("#D2FBD4","#92BCAB","#527D82","#123F5A")
+palette2 <- c("#6baed6","#08519c")
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+recidivism <- 
+  read.socrata("https://data.ojp.usdoj.gov/Courts/NIJ-s-Recidivism-Challenge-Full-Dataset/ynf5-u8nk")
+```
+
+
+
+```{r pressure, echo=FALSE}
+recidivism %>%
+  dplyr::select(recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,vioations,avg_days_per_drugtest, percent_days_employed) %>%
+  gather(Variable, value, -recidivism_within_3years) %>%
+    ggplot(aes(recidivism_within_3years, value, fill=recidivism_within_3years)) + 
+      geom_bar(position = "dodge", stat = "summary", fun = "mean") + 
+      facet_wrap(~Variable, scales = "free") +
+      scale_fill_manual(values = palette2) +
+      labs(x="Recidivism within 3 years", y="Value", 
+           title = "Feature associations with the likelihood of Recidivism within 3 years",
+           subtitle = "(continous outcomes)") +
+      theme(legend.position = "none")
+```
+
+
+
+```{r}
+recidivism %>%
+  dplyr::select(recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,vioations,avg_days_per_drugtest, percent_days_employed) %>%
+    gather(Variable, value, -recidivism_within_3years) %>%
+    ggplot() + 
+    geom_density(aes(value, color=recidivism_within_3years), fill = "transparent") + 
+    facet_wrap(~Variable, scales = "free") +
+    scale_fill_manual(values = palette2) +
+    labs(title = "Feature distributions Recidivism within 3 years vs. no Recidivism within 3 years",
+         subtitle = "(continous outcomes)")
+```
+
+```{r}
+recidivism %>%
+    dplyr::select(recidivism_within_3years, recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,vioations,avg_days_per_drugtest, percent_days_employed) %>%
+    gather(Variable, value, -recidivism_within_3years) %>%
+    count(Variable, value, recidivism_within_3years) %>%
+      ggplot(., aes(value, n, fill = recidivism_within_3years)) +   
+        geom_bar(position = "dodge", stat="identity") +
+        facet_wrap(~Variable, scales="free") +
+        scale_fill_manual(values = palette2) +
+        labs(x="Recidivism within 3 years", y="Value",
+             title = "Feature associations with the likelihood of Recidivism within 3 years",
+             subtitle = "Categorical features") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+
+```
+
+
+
+
