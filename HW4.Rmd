@@ -69,7 +69,7 @@ ggplot(data = recidivism) +
 
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 cat_var <- recidivism %>%
-  select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations) %>%
+  select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations,prior_arrest_episodes_felony,prior_arrest_episodes_misd,delinquency_reports,residence_changes) %>%
   pivot_longer(cols = -recidivism_within_3years, names_to = "Variable", values_to = "value") %>%
   count(Variable, value, recidivism_within_3years) %>%
   ggplot(aes(x = value, y = n, fill = recidivism_within_3years)) + 
@@ -84,6 +84,10 @@ cat_var <- recidivism %>%
                  prison_offense = "Prison Offense",
                  prison_years = "Years in Prison",
                  violations = "Violations",
+                 prior_arrest_episodes_felony = "Prior Arrest Episodes Felony",
+                 prior_arrest_episodes_misd = "Prior Arrest Episodes Misd",
+                 delinquency_reports="Delinquency Reports",
+                 residence_changes = "Residence Changes",
                  employment_exempt = "Employment Exempt"))) +
     scale_fill_manual(values = palette2, name = "Recidivism_within_3years") +
     labs(x = "Category", y = "Count",
@@ -186,7 +190,7 @@ kable(chi_square_results, col.names = c("Degrees of Freedom", "Chi-Squared", "P-
 ## Numeric Variables
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 numeric_var <- recidivism %>% 
-  select(recidivism_within_3years, residence_puma,supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive)
+  select(recidivism_within_3years, supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive)
 
 
 numeric_var %>%
@@ -194,7 +198,6 @@ numeric_var %>%
     ggplot(aes(recidivism_within_3years, value, fill=recidivism_within_3years)) + 
       geom_bar(position = "dodge", stat = "summary", fun = "mean") + 
       facet_wrap(~Variable, scales = "free", ncol = 4, labeller= labeller(Variable = c(
-                     `residence_puma` = "Residence PUMA",
                      `supervision_risk_score_first` = "Supervision Risk Score",
                      `percent_days_employed` = "Percent Days Employed",
                      `jobs_per_year` = "Jobs Per Year",
@@ -346,7 +349,7 @@ recidivismTest  <- recidivism[-trainIndex,]
 
 recidivismModel <- glm(recidivism_within_3years_numreic ~ .,
                   data=recidivismTrain %>% 
-                    dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property), family="binomial" (link="logit"))
+                    dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_3,prior_conviction_episodes_4,prior_conviction_episodes_5,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes), family="binomial" (link="logit"))
 
 recidivism_sum <- summary(recidivismModel)
 coefficients_table <- as.data.frame(recidivism_sum$coefficients)
@@ -395,6 +398,18 @@ ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
 ```{r}
 pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 ```
+
+
+```{r}
+testProbs <- 
+  testProbs %>%
+  mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.4 , 1, 0)))
+
+caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome, 
+                       positive = "1")
+```
+
+
 
 
 ## Cross Validation （有问题！）
