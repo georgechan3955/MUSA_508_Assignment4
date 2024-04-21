@@ -32,56 +32,202 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r cars}
 recidivism <- 
   read.socrata("https://data.ojp.usdoj.gov/Courts/NIJ-s-Recidivism-Challenge-Full-Dataset/ynf5-u8nk")
+recidivism <- recidivism %>%
+   mutate(recidivism_within_3years_numreic = case_when(
+    recidivism_within_3years == "true" ~ 1,
+    recidivism_within_3years == "false" ~ 0,
+    TRUE ~ NA_integer_  # Handles any unexpected values
+  ))
 ```
 
 
 
-```{r pressure, echo=FALSE}
-recidivism %>%
-  dplyr::select(recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,vioations,avg_days_per_drugtest, percent_days_employed) %>%
+## Categorical Variables
+```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
+cat_var <- recidivism %>%
+  dplyr::select(recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,violations) %>%
+  gather(Variable, value, -recidivism_within_3years) %>%
+     ggplot(aes(x = value, fill = recidivism_within_3years)) + 
+    geom_bar(position = "dodge") + 
+    facet_wrap(~Variable, scales = "free") +
+    scale_fill_manual(values = palette2,name="Recidivism_within_3years") +
+    labs(x = "Category", y = "Count", 
+         title = "Feature associations with the likelihood of Recidivism within 3 years",
+         subtitle = "Categorical outcomes") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  theme(plot.subtitle = element_text(size = 12,face = "italic"),
+        plot.title = element_text(size = 18, face = "bold"), 
+        axis.text.x=element_text(size=8),
+        axis.text.y=element_text(size=8), 
+        axis.title=element_text(size=9), 
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "grey", fill=NA, linewidth =0.8))
+
+```
+
+## Chi square
+```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
+chi_var <- c("gender","race", "age_at_release", "education_level","prison_years","violations")
+
+chi_square_results <- data.frame(
+  Df = integer(),
+  X_Squared = numeric(),
+  P_Value = numeric(),
+  stringsAsFactors = FALSE
+)
+
+for (var in chi_var) {
+  contingency_table <- table(cat_var$recidivism_within_3years, cat_var[[var]])
+  chi_square <- chisq.test(contingency_table)
+  chi_square_results <- rbind(chi_square_results, data.frame(
+    Df = chi_square$parameter,
+    X_Squared = chi_square$statistic,
+    P_Value = chi_square$p.value
+  ))
+}
+
+rownames(chi_square_results) <- Label
+
+
+chi_square_results %>% 
+ kable() %>% 
+ kable_styling( bootstrap_options = c("striped", "hover", "condensed")) %>% 
+    footnote(general_title = "\n", general = "Table 1")
+```
+
+## Numeric Variables
+```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
+numeric_var <- recidivism %>% 
+  select(recidivism_within_3years, residence_puma,supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive)
+
+
+numeric_var %>%
   gather(Variable, value, -recidivism_within_3years) %>%
     ggplot(aes(recidivism_within_3years, value, fill=recidivism_within_3years)) + 
       geom_bar(position = "dodge", stat = "summary", fun = "mean") + 
-      facet_wrap(~Variable, scales = "free") +
+      facet_wrap(~Variable, scales = "free", ncol = 4, labeller= labeller(Variable = c(
+                     `residence_puma` = "Residence PUMA",
+                     `supervision_risk_score_first` = "Supervision Risk Score",
+                     `percent_days_employed` = "Percent Days Employed",
+                     `jobs_per_year` = "Jobs Per Year",
+                     `avg_days_per_drugtest` = "Avg Days Per Drugtest",
+                     `drugtests_thc_positive` = "Drugtests_THC_Positive",
+                     `drugtests_meth_positive` = "Drugtests_Meth_Positive",
+                     `drugtests_cocaine_positive`= "Drugtests_Cocaine_Positive"))) +
       scale_fill_manual(values = palette2) +
-      labs(x="Recidivism within 3 years", y="Value", 
-           title = "Feature associations with the likelihood of Recidivism within 3 years",
-           subtitle = "(continous outcomes)") +
-      theme(legend.position = "none")
+      labs(x="Recidivism_within_3years", y="Value", 
+           title = "Feature Associations with the Likelihood of Recidivism",
+           subtitle = "Numeric features") +
+      theme(legend.position = "none") +
+    theme(plot.subtitle = element_text(size = 12,face = "italic"),
+        plot.title = element_text(size = 18, face = "bold"), 
+        axis.text.x=element_text(size=10),
+        axis.text.y=element_text(size=10), 
+        axis.title=element_text(size=9), 
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "grey", fill=NA, linewidth =0.8))
 ```
 
 
 
-```{r}
-recidivism %>%
-  dplyr::select(recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,vioations,avg_days_per_drugtest, percent_days_employed) %>%
+
+
+```{r cache = TRUE, warning = FALSE, message = FALSE, fig.height=10}
+numeric_var %>%
     gather(Variable, value, -recidivism_within_3years) %>%
     ggplot() + 
     geom_density(aes(value, color=recidivism_within_3years), fill = "transparent") + 
-    facet_wrap(~Variable, scales = "free") +
-    scale_fill_manual(values = palette2) +
-    labs(title = "Feature distributions Recidivism within 3 years vs. no Recidivism within 3 years",
-         subtitle = "(continous outcomes)")
+   facet_wrap(~Variable, scales = "free", ncol = 4, labeller= labeller(Variable = c(
+                     `residence_puma` = "Residence PUMA",
+                     `supervision_risk_score_first` = "Supervision Risk Score",
+                     `percent_days_employed` = "Percent Days Employed",
+                     `jobs_per_year` = "Jobs Per Year",
+                     `avg_days_per_drugtest` = "Avg Days Per Drugtest",
+                     `drugtests_thc_positive` = "Drugtests_THC_Positive",
+                     `drugtests_meth_positive` = "Drugtests_Meth_Positive",
+                     `drugtests_cocaine_positive`= "Drugtests_Cocaine_Positive"))) +
+  scale_color_manual(values = palette2) +
+    labs(title = "Feature Distributions Based on Recidivism",
+         subtitle = "Continous features") +
+  theme(plot.subtitle = element_text(size = 12,face = "italic"),
+        plot.title = element_text(size = 18, face = "bold"), 
+        axis.text.x=element_text(size=9),
+        axis.text.y=element_text(size=9), 
+        axis.title=element_text(size=9), 
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "grey", fill=NA, linewidth =0.8))
 ```
 
+
+
 ```{r}
-recidivism %>%
-    dplyr::select(recidivism_within_3years, recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,vioations,avg_days_per_drugtest, percent_days_employed) %>%
-    gather(Variable, value, -recidivism_within_3years) %>%
-    count(Variable, value, recidivism_within_3years) %>%
-      ggplot(., aes(value, n, fill = recidivism_within_3years)) +   
-        geom_bar(position = "dodge", stat="identity") +
-        facet_wrap(~Variable, scales="free") +
-        scale_fill_manual(values = palette2) +
-        labs(x="Recidivism within 3 years", y="Value",
-             title = "Feature associations with the likelihood of Recidivism within 3 years",
-             subtitle = "Categorical features") +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+anova_var <- c(recidivism_within_3years, residence_puma,supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive)
+
+new_names <- c("residence_puma" = "Residence PUMA",
+                     "supervision_risk_score_first"= "Supervision Risk Score",
+                     "percent_days_employed" = "Percent Days Employed",
+                     "jobs_per_year"= "Jobs Per Year",
+                     "avg_days_per_drugtest" = "Avg Days Per Drugtest",
+                     "drugtests_thc_positive" = "Drugtests_THC_Positive",
+                     "drugtests_meth_positive" = "Drugtests_Meth_Positive",
+                     "drugtests_cocaine_positive"= "Drugtests_Cocaine_Positive")
+
+anova_results <- data.frame(
+                            Df = integer(), 
+                            Sum_Sq = numeric(), 
+                            Mean_Sq = numeric(), 
+                            F_value = numeric(), 
+                            P_Value = numeric(), stringsAsFactors = FALSE)
+
+for (var in anova_var) {
+  anova_result <- aov(numeric_var[[var]] ~ numeric_var$y)
+  summary_data <- summary(anova_result)[[1]][, c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")][1:1, ]
+  anova_results <- rbind(anova_results, summary_data)
+}
+
+
+rownames(anova_results) <- new_names
+
+
+anova_results %>% 
+ kable() %>% 
+ kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 
+    footnote(general_title = "\n", general = "Table 2")
+```
+
+
+## Logistic Regression
+```{r}
+set.seed(479)
+trainIndex <- createDataPartition(y = paste(recidivism$residence_puma) , p = .65,
+                                  list = FALSE,
+                                  times = 1)
 ```
 
 
 ```{r}
+recidivismTrain <- recidivism[ trainIndex,]
+recidivismTest  <- recidivism[-trainIndex,]
 
+recidivismModel <- glm(recidivism_within_3years_numreic ~ .,
+                  data=recidivismTrain %>% 
+                    dplyr::select(recidivism_within_3years_numreic,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,violations,residence_puma,supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive), family="binomial" (link="logit"))
+
+recidivism_sum <- summary(recidivismModel)
+coefficients_table <- as.data.frame(recidivism_sum$coefficients)
+
+coefficients_table$significance <- ifelse(coefficients_table$`Pr(>|z|)` < 0.001, '***',
+                                         ifelse(coefficients_table$`Pr(>|z|)` < 0.01, '**',
+                                                ifelse(coefficients_table$`Pr(>|z|)` < 0.05, '*',
+                                                       ifelse(coefficients_table$`Pr(>|z|)` < 0.1, '.', ''))))
+
+coefficients_table$p_value <- paste0(round(coefficients_table$`Pr(>|z|)`, digits = 3), coefficients_table$significance)
+
+coefficients_table %>%
+  select(-significance, -`Pr(>|z|)`) %>% 
+  kable(align = "r") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))  %>%
+  footnote(general_title = "\n", general = "Table 3")
 ```
 
 
