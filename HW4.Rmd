@@ -17,6 +17,7 @@ library(pscl)
 library(plotROC)
 library(pROC)
 library(lubridate)
+library(ggplot2)
 
 palette5 <- c("#eff3ff","#bdd7e7","#6baed6","#3182bd","#08519c")
 palette4 <- c("#D2FBD4","#92BCAB","#527D82","#123F5A")
@@ -38,6 +39,14 @@ recidivism <- recidivism %>%
     recidivism_within_3years == "false" ~ 0,
     TRUE ~ NA_integer_  # Handles any unexpected values
   ))
+
+recidivism <- recidivism %>%
+  filter(!if_any(c(gender, race, age_at_release, supervision_level_first, education_level,
+                   prison_offense, prison_years, violations, residence_puma,
+                   supervision_risk_score_first, percent_days_employed, jobs_per_year,
+                   avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,
+                   drugtests_cocaine_positive), is.na))
+
 ```
 
 
@@ -48,10 +57,10 @@ cat_var <- recidivism %>%
   dplyr::select(recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,violations) %>%
   gather(Variable, value, -recidivism_within_3years) %>%
      ggplot(aes(x = value, fill = recidivism_within_3years)) + 
-    geom_bar(position = "dodge") + 
+    geom_bar(position = "dodge",stat = "summary", fun = "mean") + 
     facet_wrap(~Variable, scales = "free") +
     scale_fill_manual(values = palette2,name="Recidivism_within_3years") +
-    labs(x = "Category", y = "Count", 
+    labs(x = "Category", y = "Mean", 
          title = "Feature associations with the likelihood of Recidivism within 3 years",
          subtitle = "Categorical outcomes") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
@@ -68,6 +77,7 @@ cat_var <- recidivism %>%
 ## Chi square
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 chi_var <- c("gender","race", "age_at_release", "education_level","prison_years","violations")
+
 
 chi_square_results <- data.frame(
   Df = integer(),
@@ -230,6 +240,19 @@ coefficients_table %>%
   footnote(general_title = "\n", general = "Table 3")
 ```
 
-
-
-
+```{r}
+pR2(recidivismModel) #McFadden: 0.246
+```
+```{r}
+testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numreic), Probs = predict(recidivismModel, recidivismTest, type= "response"))
+head(testProbs)
+```
+```{r}
+ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) + 
+  geom_density() +
+  facet_grid(Outcome ~ .) +
+  scale_fill_manual(values = palette2) + xlim(0, 1) +
+  labs(x = "Recidivism", y = "Density of probabilities",
+       title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
+        legend.position = "none")
+```
