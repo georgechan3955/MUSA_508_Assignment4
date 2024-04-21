@@ -250,40 +250,55 @@ numeric_var %>%
 
 
 ```{r}
-numeric_var <- recidivism %>% 
-  select(recidivism_within_3years, supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive)  
-  
-anova_var <- c("recidivism_within_3years","supervision_risk_score_first", "percent_days_employed","avg_days_per_drugtest", "drugtests_thc_positive", "drugtests_meth_positive","drugtests_cocaine_positive")
+numeric_var <- recidivism %>%
+  select(recidivism_within_3years, supervision_risk_score_first, percent_days_employed,
+         jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive,
+         drugtests_meth_positive, drugtests_cocaine_positive) %>%
+  na.omit()
 
-new_names <- c( "supervision_risk_score_first"= "Supervision Risk Score",
-                     "percent_days_employed" = "Percent Days Employed",
-                     "jobs_per_year"= "Jobs Per Year",
-                     "avg_days_per_drugtest" = "Avg Days Per Drugtest",
-                     "drugtests_thc_positive" = "Drugtests_THC_Positive",
-                     "drugtests_meth_positive" = "Drugtests_Meth_Positive",
-                     "drugtests_cocaine_positive"= "Drugtests_Cocaine_Positive")
+# Define ANOVA variables and corresponding new readable names
+anova_var <- c("supervision_risk_score_first", "percent_days_employed", "jobs_per_year",
+               "avg_days_per_drugtest", "drugtests_thc_positive", "drugtests_meth_positive",
+               "drugtests_cocaine_positive")
 
+new_names <- c("Supervision Risk Score", "Percent Days Employed", "Jobs Per Year",
+               "Avg Days Per Drugtest", "THC Positive Drugtests", "Meth Positive Drugtests",
+               "Cocaine Positive Drugtests")
+
+# Initialize the results data frame
 anova_results <- data.frame(
-                            Df = integer(), 
-                            Sum_Sq = numeric(), 
-                            Mean_Sq = numeric(), 
-                            F_value = numeric(), 
-                            P_Value = numeric(), stringsAsFactors = FALSE)
+  Variable = new_names,  # use new_names for the variable labels
+  Df = integer(length(anova_var)),
+  Sum_Sq = numeric(length(anova_var)),
+  Mean_Sq = numeric(length(anova_var)),
+  F_value = numeric(length(anova_var)),
+  P_Value = numeric(length(anova_var)),
+  stringsAsFactors = FALSE
+)
 
-for (var in anova_var) {
-  anova_result <- aov(numeric_var[[var]] ~ numeric_var$recidivism_within_3years)
-  summary_data <- summary(anova_result)[[1]][, c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")][1:1, ]
-  anova_results <- rbind(anova_results, summary_data)
+# Run ANOVA for each variable
+for (i in seq_along(anova_var)) {
+  var <- anova_var[i]
+  
+  # Perform ANOVA
+  anova_result <- aov(reformulate('recidivism_within_3years', response = var), data = numeric_var)
+  
+  # Extract the summary
+  summary_data <- summary(anova_result)[[1]]
+  
+  # Fill the results data frame
+  anova_results[i, "Df"] <- summary_data["Df"][1]
+  anova_results[i, "Sum_Sq"] <- summary_data["Sum Sq"][1]
+  anova_results[i, "Mean_Sq"] <- summary_data["Mean Sq"][1]
+  anova_results[i, "F_value"] <- summary_data["F value"][1]
+  anova_results[i, "P_Value"] <- summary_data["Pr(>F)"][1]
 }
 
-
-rownames(anova_results) <- new_names
-
-
-anova_results %>% 
- kable() %>% 
- kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 
-    footnote(general_title = "\n", general = "Table 2")
+# Output the results
+anova_results %>%
+  kable(col.names = c("Variable", "Degrees of Freedom", "Sum Sq", "Mean Sq", "F value", "P-Value")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  footnote(general_title = "\n", general = "Table 2: ANOVA Results for Numeric Variables")
 ```
 
 
@@ -352,10 +367,12 @@ coefficients_table %>%
 ```{r}
 pR2(recidivismModel) #McFadden: 0.246
 ```
+
 ```{r}
 testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numreic), Probs = predict(recidivismModel, recidivismTest, type= "response"))
 head(testProbs)
 ```
+
 ```{r}
 ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) + 
   geom_density() +
@@ -385,3 +402,408 @@ testProbs <-
 caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome, 
                        positive = "1")
 ```
+
+# Cross Validation
+
+```{r}
+ctrl <- trainControl(method = "cv", number = 100, classProbs=TRUE, summaryFunction=twoClassSummary)
+
+cvFit <- train(recidivism_within_3years_numreic~ .,
+                  data=recidivism %>% 
+                    dplyr::select(recidivism_within_3years_numreic,gender,race,age,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated), 
+                method="glm", family="binomial",
+                metric="ROC", trControl = ctrl)
+
+cvFit
+```
+
+
+```{r}
+dplyr::select(cvFit$resample, -Resample) %>%
+  gather(metric, value) %>%
+  left_join(gather(cvFit$results[2:4], metric, mean)) %>%
+  ggplot(aes(value)) + 
+    geom_histogram(bins=35, fill = "#FF006A") +
+    facet_wrap(~metric) +
+    geom_vline(aes(xintercept = mean), colour = "#981FAC", linetype = 3, size = 1.5) +
+    scale_x_continuous(limits = c(0, 1)) +
+    labs(x="Goodness of Fit", y="Count", title="CV Goodness of Fit Metrics",
+         subtitle = "Across-fold mean reprented as dotted lines")
+
+```
+
+
+## Racial Fairness
+
+```{r}
+recidivism %>%
+    group_by(recidivism_within_3years, race) %>%
+    summarize(n = n()) %>%
+    mutate(freq = n / sum(n)) %>% filter(recidivism_within_3years == "true") %>%
+    ggplot(aes(reorder(race, -freq), freq)) +
+    geom_bar(stat = "identity", position = "dodge", fill = palette2) +
+    labs(title = "Recidivism rate by race",
+         y = "Rate", x = "Race") +
+    theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+reg.noRace <- glm(recidivism_within_3years_numreic ~ ., data = 
+                    recidivismTrain %>% dplyr::select(gender,age,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated, recidivism_within_3years_numreic),
+                family = "binomial"(link = "logit"))
+
+reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data = 
+                      recidivismTrain %>% dplyr::select(gender,race,age,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated, recidivism_within_3years_numreic),
+                family = "binomial"(link = "logit"))
+
+```
+
+
+```{r}
+testProbs_race <- 
+  data.frame(class = recidivismTest$recidivism_within_3years_numreic,
+             probs = predict(reg.noRace, recidivismTest, type = "response"),
+             Race = recidivismTest$race)
+```
+
+```{r}
+mutate(testProbs_race, predClass = ifelse(probs >= .5, 1, 0)) %>%
+  group_by(Race) %>%
+  summarize(Observed.recidivism = sum(class) / n(),
+            Predicted.recidivism = sum(predClass) / n()) %>%
+  gather(Variable, Value, -Race) %>%
+  ggplot(aes(Race, Value)) +
+    geom_bar(aes(fill = Race), position="dodge", stat="identity") +
+    scale_fill_manual(values = palette2) +
+    facet_wrap(~Variable) +
+    labs(title = "Observed and predicted recidivism", x = "Race", y = "Rate") +
+    theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+iterateThresholds <- function(data, observedClass, predictedProbs, group) {
+  observedClass <- enquo(observedClass)
+  predictedProbs <- enquo(predictedProbs)
+  group <- enquo(group)
+  x = .01
+  all_prediction <- data.frame()
+  
+  if (missing(group)) {
+  
+    while (x <= 1) {
+    this_prediction <- data.frame()
+    
+    this_prediction <-
+      data %>%
+      mutate(predclass = ifelse(!!predictedProbs > x, 1,0)) %>%
+      count(predclass, !!observedClass) %>%
+      summarize(Count_TN = sum(n[predclass==0 & !!observedClass==0]),
+                Count_TP = sum(n[predclass==1 & !!observedClass==1]),
+                Count_FN = sum(n[predclass==0 & !!observedClass==1]),
+                Count_FP = sum(n[predclass==1 & !!observedClass==0]),
+                Rate_TP = Count_TP / (Count_TP + Count_FN),
+                Rate_FP = Count_FP / (Count_FP + Count_TN),
+                Rate_FN = Count_FN / (Count_FN + Count_TP),
+                Rate_TN = Count_TN / (Count_TN + Count_FP),
+                Accuracy = (Count_TP + Count_TN) / 
+                           (Count_TP + Count_TN + Count_FN + Count_FP)) %>%
+      mutate(Threshold = round(x,2))
+    
+    all_prediction <- rbind(all_prediction,this_prediction)
+    x <- x + .01
+  }
+  return(all_prediction)
+  }
+  else if (!missing(group)) { 
+   while (x <= 1) {
+    this_prediction <- data.frame()
+    
+    this_prediction <-
+      data %>%
+      mutate(predclass = ifelse(!!predictedProbs > x, 1,0)) %>%
+      group_by(!!group) %>%
+      count(predclass, !!observedClass) %>%
+      summarize(Count_TN = sum(n[predclass==0 & !!observedClass==0]),
+                Count_TP = sum(n[predclass==1 & !!observedClass==1]),
+                Count_FN = sum(n[predclass==0 & !!observedClass==1]),
+                Count_FP = sum(n[predclass==1 & !!observedClass==0]),
+                Rate_TP = Count_TP / (Count_TP + Count_FN),
+                Rate_FP = Count_FP / (Count_FP + Count_TN),
+                Rate_FN = Count_FN / (Count_FN + Count_TP),
+                Rate_TN = Count_TN / (Count_TN + Count_FP),
+                Accuracy = (Count_TP + Count_TN) / 
+                           (Count_TP + Count_TN + Count_FN + Count_FP)) %>%
+      mutate(Threshold = round(x, 2))
+    
+    all_prediction <- rbind(all_prediction, this_prediction)
+    x <- x + .01
+  }
+  return(all_prediction)
+  }
+}
+```
+
+```{r}
+testProbs.thresholds <- 
+  iterateThresholds(data=testProbs_race, observedClass = class, 
+                    predictedProbs = probs, group = Race)
+
+filter(testProbs.thresholds, Threshold == .5)  %>%
+  dplyr::select(Accuracy, Race, starts_with("Rate")) %>%
+  gather(Variable, Value, -Race) %>%
+    ggplot(aes(Variable, Value, fill = Race)) +
+      geom_bar(aes(fill = Race), position = "dodge", stat = "identity") +
+      scale_fill_manual(values = palette2) +
+      labs(title="Confusion matrix rates by race",
+           subtitle = "50% threshold", x = "Outcome",y = "Rate") +
+      theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+```{r}
+aucTable <- 
+  testProbs_race %>% 
+  group_by(Race) %>% 
+  summarize(AUC = auc(class,probs)) %>% 
+  mutate(AUC = as.character(round(AUC, 2)))
+
+mutate(testProbs_race.thresholds, pointSize = ifelse(Threshold == .48, 24, 16)) %>%
+  ggplot(aes(Rate_FP, Rate_TP, colour=Race)) + 
+  geom_point(aes(shape = pointSize)) + geom_line() + scale_shape_identity() +
+  scale_color_manual(values = palette2) +
+  geom_abline(slope = 1, intercept = 0, size = 1.5, color = 'grey') +
+  annotation_custom(tableGrob(aucTable, rows = NULL), xmin = .65, xmax = 1, ymin = 0, ymax = .25) +
+  labs(title="ROC Curves by race", x="False Positive Rate", y="True Positive Rate") +
+  plotTheme()
+```
+
+# Racial-Gender Fairness
+
+```{r}
+recidivism %>%
+    group_by(recidivism_within_3years, race) %>%
+    summarize(n = n()) %>%
+    mutate(freq = n / sum(n)) %>% filter(recidivism_within_3years == "true") %>%
+    ggplot(aes(reorder(race, -freq), freq)) +
+    geom_bar(stat = "identity", position = "dodge", fill = palette2) +
+    labs(title = "Recidivism rate by race",
+         y = "Rate", x = "Race") +
+    theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+reg.noRace <- glm(recidivism_within_3years_numreic ~ ., data = 
+                    recidivismTrain %>% dplyr::select(gender,age,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated, recidivism_within_3years_numreic),
+                family = "binomial"(link = "logit"))
+
+reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data = 
+                      recidivismTrain %>% dplyr::select(gender,race,age,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated, recidivism_within_3years_numreic),
+                family = "binomial"(link = "logit"))
+
+```
+
+```{r}
+testProbs_race_gender <- 
+  data.frame(class = recidivismTest$recidivism_within_3years_numreic,
+             probs = predict(reg.noRace, recidivismTest, type = "response"),
+             Race = recidivismTest$race)
+```
+
+```{r}
+mutate(testProbs_race_gender, predClass = ifelse(probs >= .5, 1, 0)) %>%
+  group_by(Race) %>%
+  summarize(Observed.recidivism = sum(class) / n(),
+            Predicted.recidivism = sum(predClass) / n()) %>%
+  gather(Variable, Value, -Race) %>%
+  ggplot(aes(Race, Value)) +
+    geom_bar(aes(fill = Race), position="dodge", stat="identity") +
+    scale_fill_manual(values = palette2) +
+    facet_wrap(~Variable) +
+    labs(title = "Observed and predicted recidivism", x = "Race", y = "Rate") +
+    theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+iterateThresholds <- function(data, observedClass, predictedProbs, group) {
+  observedClass <- enquo(observedClass)
+  predictedProbs <- enquo(predictedProbs)
+  group <- enquo(group)
+  x = .01
+  all_prediction <- data.frame()
+  
+  if (missing(group)) {
+  
+    while (x <= 1) {
+    this_prediction <- data.frame()
+    
+    this_prediction <-
+      data %>%
+      mutate(predclass = ifelse(!!predictedProbs > x, 1,0)) %>%
+      count(predclass, !!observedClass) %>%
+      summarize(Count_TN = sum(n[predclass==0 & !!observedClass==0]),
+                Count_TP = sum(n[predclass==1 & !!observedClass==1]),
+                Count_FN = sum(n[predclass==0 & !!observedClass==1]),
+                Count_FP = sum(n[predclass==1 & !!observedClass==0]),
+                Rate_TP = Count_TP / (Count_TP + Count_FN),
+                Rate_FP = Count_FP / (Count_FP + Count_TN),
+                Rate_FN = Count_FN / (Count_FN + Count_TP),
+                Rate_TN = Count_TN / (Count_TN + Count_FP),
+                Accuracy = (Count_TP + Count_TN) / 
+                           (Count_TP + Count_TN + Count_FN + Count_FP)) %>%
+      mutate(Threshold = round(x,2))
+    
+    all_prediction <- rbind(all_prediction,this_prediction)
+    x <- x + .01
+  }
+  return(all_prediction)
+  }
+  else if (!missing(group)) { 
+   while (x <= 1) {
+    this_prediction <- data.frame()
+    
+    this_prediction <-
+      data %>%
+      mutate(predclass = ifelse(!!predictedProbs > x, 1,0)) %>%
+      group_by(!!group) %>%
+      count(predclass, !!observedClass) %>%
+      summarize(Count_TN = sum(n[predclass==0 & !!observedClass==0]),
+                Count_TP = sum(n[predclass==1 & !!observedClass==1]),
+                Count_FN = sum(n[predclass==0 & !!observedClass==1]),
+                Count_FP = sum(n[predclass==1 & !!observedClass==0]),
+                Rate_TP = Count_TP / (Count_TP + Count_FN),
+                Rate_FP = Count_FP / (Count_FP + Count_TN),
+                Rate_FN = Count_FN / (Count_FN + Count_TP),
+                Rate_TN = Count_TN / (Count_TN + Count_FP),
+                Accuracy = (Count_TP + Count_TN) / 
+                           (Count_TP + Count_TN + Count_FN + Count_FP)) %>%
+      mutate(Threshold = round(x, 2))
+    
+    all_prediction <- rbind(all_prediction, this_prediction)
+    x <- x + .01
+  }
+  return(all_prediction)
+  }
+}
+```
+
+```{r}
+testProbs.thresholds <- 
+  iterateThresholds(data=testProbs_race_gender, observedClass = class, 
+                    predictedProbs = probs, group = Race)
+
+filter(testProbs.thresholds, Threshold == .5)  %>%
+  dplyr::select(Accuracy, Race, starts_with("Rate")) %>%
+  gather(Variable, Value, -Race) %>%
+    ggplot(aes(Variable, Value, fill = Race)) +
+      geom_bar(aes(fill = Race), position = "dodge", stat = "identity") +
+      scale_fill_manual(values = palette2) +
+      labs(title="Confusion matrix rates by race",
+           subtitle = "50% threshold", x = "Outcome",y = "Rate") +
+      theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+
+#  Cost-Benefit Analysis
+```{r}
+cost_benefit_table <-
+   testProbs %>%
+      count(predOutcome, Outcome) %>%
+      summarize(True_Negative = sum(n[predOutcome==0 & Outcome==0]),
+                True_Positive = sum(n[predOutcome==1 & Outcome==1]),
+                False_Negative = sum(n[predOutcome==0 & Outcome==1]),
+                False_Positive = sum(n[predOutcome==1 & Outcome==0])) %>%
+       gather(Variable, Count) %>%
+       mutate(Revenue =
+               ifelse(Variable == "True_Negative", Count * 0,
+               ifelse(Variable == "True_Positive",((.35 - .1) * Count),
+               ifelse(Variable == "False_Negative", (-0.35) * Count,
+               ifelse(Variable == "False_Positive", (-0.1) * Count, 0))))) %>%
+    bind_cols(data.frame(Description = c(
+              "We correctly predicted no recidivism",
+              "We correctly predicted a recidivism",
+              "We predicted no recidivism but the crimer recidivate",
+              "We predicted a recidivism but the crimer did not recidivate")))
+
+kable(cost_benefit_table,
+       caption = "Cost/Benefit Table") %>% kable_styling()
+```
+```{r}
+iterateThresholds <- function(data) {
+  x = .01
+  all_prediction <- data.frame()
+  while (x <= 1) {
+  
+  this_prediction <-
+      testProbs %>%
+      mutate(predOutcome = ifelse(Probs > x, 1, 0)) %>%
+      count(predOutcome, Outcome) %>%
+      summarize(True_Negative = sum(n[predOutcome==0 & Outcome==0]),
+                True_Positive = sum(n[predOutcome==1 & Outcome==1]),
+                False_Negative = sum(n[predOutcome==0 & Outcome==1]),
+                False_Positive = sum(n[predOutcome==1 & Outcome==0])) %>%
+     gather(Variable, Count) %>%
+     mutate(Revenue =
+               ifelse(Variable == "True_Negative", Count * 0,
+               ifelse(Variable == "True_Positive",((.35 - .1) * Count),
+               ifelse(Variable == "False_Negative", (-0.35) * Count,
+               ifelse(Variable == "False_Positive", (-0.1) * Count, 0)))),
+            Threshold = x)
+  
+  all_prediction <- rbind(all_prediction, this_prediction)
+  x <- x + .01
+  }
+return(all_prediction)
+}
+
+```
+
+```{r}
+whichThreshold <- iterateThresholds(testProbs)
+
+whichThreshold_revenue <- 
+whichThreshold %>% 
+    group_by(Threshold) %>% 
+    summarize(Revenue = sum(Revenue))
+
+whichThreshold %>%
+  ggplot(.,aes(Threshold, Revenue, colour = Variable)) +
+  geom_point() +
+  scale_colour_manual(values = palette5[c(5, 1:3)]) +    
+  labs(title = "Figure 9: Revenue by confusion matrix type and threshold",
+       y = "Revenue") +
+  theme_minimal() +
+  guides(colour=guide_legend(title = "Confusion Matrix")) 
+```
+
+
+```{r}
+
+whichThreshold <- iterateThresholds(testProbs2)
+
+whichThreshold_revenue <- 
+whichThreshold %>% 
+    group_by(Threshold) %>% 
+    summarize(Revenue = sum(Revenue))
+
+  ggplot(whichThreshold_revenue)+
+    theme_minimal()+
+  geom_line(aes(x = Threshold, y = Revenue))+
+  geom_vline(xintercept =  pull(arrange(whichThreshold_revenue, -Revenue)[1,1]))+
+    labs(title = "Model Revenues By Threshold For Test Sample",
+         subtitle = "Vertical Line Denotes Optimal Threshold")
+```
+
+
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
