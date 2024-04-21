@@ -41,36 +41,78 @@ recidivism <- recidivism %>%
   ))
 
 recidivism <- recidivism %>%
-  filter(!if_any(c(gender, race, age_at_release, supervision_level_first, education_level,
+  drop_na(gender, race, age_at_release, supervision_level_first, education_level,
                    prison_offense, prison_years, violations, residence_puma,
                    supervision_risk_score_first, percent_days_employed, jobs_per_year,
                    avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,
-                   drugtests_cocaine_positive), is.na))
+                   drugtests_cocaine_positive)
 
 ```
 
 
 
 ## Categorical Variables
+
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
-cat_var <- recidivism %>%
-  dplyr::select(recidivism_within_3years,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,violations) %>%
+# Assuming 'recidivism' is your dataframe and 'palette2' is defined with appropriate colors
+cat_var <- recidivism %>% 
+  select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations) %>%
   gather(Variable, value, -recidivism_within_3years) %>%
-     ggplot(aes(x = value, fill = recidivism_within_3years)) + 
-    geom_bar(position = "dodge",stat = "summary", fun = "mean") + 
-    facet_wrap(~Variable, scales = "free") +
-    scale_fill_manual(values = palette2,name="Recidivism_within_3years") +
+  count(Variable, value, recidivism_within_3years) %>%
+    ggplot(aes(Variable, n, fill = recidivism_within_3years)) +
+      geom_bar(position = "dodge", stat = "identity") + 
+      facet_wrap(~Variable, scales = "free", ncol = 4, labeller = labeller(Variable = c(
+                     gender = "Gender",
+                     race = "Race",
+                     age_at_release = "Age at Release",
+                     supervision_level_first = "Supervision Level First",
+                     education_level = "Education Level",
+                     prison_offense = "Prison Offense",
+                     prison_years = "Years in Prison",
+                     violations = "Violations"))) +
+      scale_fill_manual(values = palette2, name="recidivism_within_3years") +
+      labs(x="recidivism_within_3years", y="Count", 
+           title = "Feature Associations with the Likelihood of Recidivism",
+           subtitle = "Categorical features") +
+      theme(
+            legend.position = "none",
+            axis.text.x = element_text(angle = 45, hjust = 1, size = 10), # Consolidated text.x settings
+            plot.subtitle = element_text(size = 12, face = "italic"),
+            plot.title = element_text(size = 18, face = "bold"), 
+            axis.text.y = element_text(size = 10), 
+            axis.title = element_text(size = 9), 
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "grey", fill = NA, linewidth = 0.8))
+```
+
+
+
+
+
+
+
+
+```{r cache = TRUE, warning = FALSE, message = FALSE}
+cat_var <- recidivism %>%
+  select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations) %>%
+  pivot_longer(cols = -recidivism_within_3years, names_to = "Variable", values_to = "value") %>%
+  group_by(Variable, value, recidivism_within_3years) %>%
+  summarise(mean_value = mean(recidivism_within_3years, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = value, y = mean_value, fill = as.factor(recidivism_within_3years))) + 
+    geom_col(position = "dodge") + 
+    facet_wrap(~Variable, scales = "free",ncol = 4) +
+    scale_fill_manual(values = palette2, name="Recidivism_within_3years") +
     labs(x = "Category", y = "Mean", 
          title = "Feature associations with the likelihood of Recidivism within 3 years",
          subtitle = "Categorical outcomes") +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
-  theme(plot.subtitle = element_text(size = 12,face = "italic"),
-        plot.title = element_text(size = 18, face = "bold"), 
-        axis.text.x=element_text(size=8),
-        axis.text.y=element_text(size=8), 
-        axis.title=element_text(size=9), 
-        panel.background = element_blank(),
-        panel.border = element_rect(colour = "grey", fill=NA, linewidth =0.8))
+    theme(
+          plot.subtitle = element_text(size = 12,face = "italic"),
+          plot.title = element_text(size = 18, face = "bold"), 
+          axis.text.x = element_text(angle = 45, vjust = 1),
+          axis.text.y = element_text(size = 8), 
+          axis.title = element_text(size = 9), 
+          panel.background = element_blank(),
+          panel.border = element_rect(colour = "grey", fill = NA, linewidth = 0.8))
 
 ```
 
@@ -87,7 +129,7 @@ chi_square_results <- data.frame(
 )
 
 for (var in chi_var) {
-  contingency_table <- table(cat_var$recidivism_within_3years, cat_var[[var]])
+  contingency_table <- table(cat_var$recidivism_within_3years_numeric, cat_var[[var]])
   chi_square <- chisq.test(contingency_table)
   chi_square_results <- rbind(chi_square_results, data.frame(
     Df = chi_square$parameter,
@@ -206,6 +248,34 @@ anova_results %>%
 ```
 
 
+## Feature Engineering
+```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
+# age
+recidivism <-recidivism %>%
+  mutate(age = case_when(
+    age_at_release == "18-22"  ~ "Gen Z",
+    age_at_release =="38-42" |age_at_release == "43-47" |age_at_release == "48 or older"  ~ "Gen X",
+    age_at_release == "23-27" |age_at_release == "28-32" |age_at_release == "33-37" ~ "Millenials"))
+
+recidivism <-recidivism %>%
+  mutate(jobnumber = cut(jobs_per_year,
+                        breaks = c(-Inf, 1, 5, Inf),  # Define intervals, including all numbers
+                        labels = c("0-1", "2-5", "6-8"),  # Labels for each interval
+                        include.lowest = TRUE) )
+
+recidivism <-recidivism %>%
+  mutate(employmentstates = cut(percent_days_employed,
+                        breaks = c(-Inf, 0, 0.99, Inf),  # Define intervals, including all numbers
+                        labels = c("Unemployed", "Parttime emplyed", "Employed"),  # Labels for each interval
+                        include.lowest = TRUE) )
+
+```
+
+
+
+
+
+
 ## Logistic Regression
 ```{r}
 set.seed(479)
@@ -221,7 +291,7 @@ recidivismTest  <- recidivism[-trainIndex,]
 
 recidivismModel <- glm(recidivism_within_3years_numreic ~ .,
                   data=recidivismTrain %>% 
-                    dplyr::select(recidivism_within_3years_numreic,gender,race, age_at_release, supervision_level_first,education_level,prison_offense,prison_years,violations,residence_puma,supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive), family="binomial" (link="logit"))
+                    dplyr::select(recidivism_within_3years_numreic,gender,race,age,dependents, supervision_level_first,education_level,prison_years,violations,residence_puma,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated), family="binomial" (link="logit"))
 
 recidivism_sum <- summary(recidivismModel)
 coefficients_table <- as.data.frame(recidivism_sum$coefficients)
@@ -255,4 +325,24 @@ ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) +
   labs(x = "Recidivism", y = "Density of probabilities",
        title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
         legend.position = "none")
+```
+## Logistic Regression
+```{r}
+ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
+  geom_roc(n.cuts = 50, labels = FALSE, colour = "#FE9900") +
+  style_roc(theme = theme_grey) +
+  geom_abline(slope = 1, intercept = 0, size = 1.5, color = 'grey') +
+  labs(title = "Figure 5: ROC Curve - Recidivism")
+```
+
+```{r}
+pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
+```
+
+```{r}
+testProbs <- 
+  testProbs %>%
+  mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.5 , 1, 0)))
+caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome, 
+                       positive = "1")
 ```
