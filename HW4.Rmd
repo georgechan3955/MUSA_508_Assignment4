@@ -368,10 +368,12 @@ coefficients_table %>%
 ```{r}
 pR2(recidivismModel) #McFadden: 0.246
 ```
+
 ```{r}
 testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numreic), Probs = predict(recidivismModel, recidivismTest, type= "response"))
 head(testProbs)
 ```
+
 ```{r}
 ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) + 
   geom_density() +
@@ -398,11 +400,28 @@ pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 ## Cross Validation （有问题！）
 
 ```{r}
+<<<<<<< HEAD
+=======
+testProbs <- 
+  testProbs %>%
+  mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.4 , 1, 0)))
+caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome, 
+                       positive = "1")
+```
+
+# Cross Validation
+
+```{r}
+>>>>>>> fd14f230ab866d024d71bbe7d30678e4fbe5ff68
 ctrl <- trainControl(method = "cv", number = 100, classProbs=TRUE, summaryFunction=twoClassSummary)
 
 cvFit <- train(recidivism_within_3years_numreic~ .,
                   data=recidivism %>% 
+<<<<<<< HEAD
                     dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property), 
+=======
+                    dplyr::select(recidivism_within_3years_numreic,gender,race,age,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated), 
+>>>>>>> fd14f230ab866d024d71bbe7d30678e4fbe5ff68
                 method="glm", family="binomial",
                 metric="ROC", trControl = ctrl)
 
@@ -424,7 +443,10 @@ dplyr::select(cvFit$resample, -Resample) %>%
 
 ```
 
+<<<<<<< HEAD
 # Generalizability
+=======
+>>>>>>> fd14f230ab866d024d71bbe7d30678e4fbe5ff68
 
 ## Racial Fairness
 
@@ -444,11 +466,19 @@ recidivism %>%
 
 ```{r}
 reg.noRace <- glm(recidivism_within_3years_numreic ~ ., data = 
+<<<<<<< HEAD
                     recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property),
                 family = "binomial"(link = "logit"))
 
 reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data = 
                       recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property),
+=======
+                    recidivismTrain %>% dplyr::select(gender,age,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated, recidivism_within_3years_numreic),
+                family = "binomial"(link = "logit"))
+
+reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data = 
+                      recidivismTrain %>% dplyr::select(gender,race,age,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated, recidivism_within_3years_numreic),
+>>>>>>> fd14f230ab866d024d71bbe7d30678e4fbe5ff68
                 family = "binomial"(link = "logit"))
 
 ```
@@ -569,7 +599,11 @@ mutate(testProbs_race.thresholds, pointSize = ifelse(Threshold == .48, 24, 16)) 
   plotTheme()
 ```
 
+<<<<<<< HEAD
 ## Racial-Gender Fairness (还没改！)
+=======
+# Racial-Gender Fairness
+>>>>>>> fd14f230ab866d024d71bbe7d30678e4fbe5ff68
 
 ```{r}
 recidivism %>%
@@ -697,7 +731,11 @@ filter(testProbs.thresholds, Threshold == .5)  %>%
 ```
 
 
+<<<<<<< HEAD
 #  Cost-Benefit Analysis （差不多了！）
+
+=======
+#  Cost-Benefit Analysis
 
 ```{r}
 cost_benefit_table <-
@@ -722,6 +760,7 @@ cost_benefit_table <-
 kable(cost_benefit_table,
        caption = "Cost/Benefit Table") %>% kable_styling()
 ```
+
 ```{r}
 iterateThresholds <- function(data) {
   x = .01
@@ -787,3 +826,20 @@ whichThreshold %>%
     labs(title = "Model Revenues By Threshold For Test Sample",
          subtitle = "Vertical Line Denotes Optimal Threshold")
 ```
+=======
+```
+
+
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+>>>>>>> fd14f230ab866d024d71bbe7d30678e4fbe5ff68
