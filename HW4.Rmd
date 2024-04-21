@@ -50,7 +50,7 @@ recidivism <- recidivism %>%
 ```
 
 
-## Exploratory Analysis
+## Exploratory Analysis - Recidivism
 
 
 ```{r cache = TRUE, warning = FALSE, message = FALSE}
@@ -132,33 +132,54 @@ cat_var <- recidivism %>%
 
 ## Chi square
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
-chi_var <- c("gender","race", "age_at_release", "education_level","prison_years","violations")
+cat_var <- recidivism %>%
+  select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations)
 
+chi_var <- c("gender", "race", "age_at_release", "supervision_level_first", "education_level", "prison_offense", "prison_years", "violations")
+label_map <- c(gender = "Gender", race = "Race", age_at_release = "Age at Release",
+               supervision_level_first = "Supervision Level First", education_level = "Education Level",
+               prison_offense = "Prison Offense", prison_years = "Years in Prison", violations = "Violations")
 
 chi_square_results <- data.frame(
+  Variable = character(),
   Df = integer(),
   X_Squared = numeric(),
   P_Value = numeric(),
   stringsAsFactors = FALSE
 )
 
+
 for (var in chi_var) {
-  contingency_table <- table(cat_var$recidivism_within_3years_numeric, cat_var[[var]])
-  chi_square <- chisq.test(contingency_table)
-  chi_square_results <- rbind(chi_square_results, data.frame(
-    Df = chi_square$parameter,
-    X_Squared = chi_square$statistic,
-    P_Value = chi_square$p.value
-  ))
+  contingency_table <- table(cat_var[[var]], cat_var$recidivism_within_3years)
+  chi_square_test <- tryCatch({
+    chisq.test(contingency_table)
+  }, warning = function(w) {
+    message("Warning for ", var, ": ", w$message)
+    return(NULL)  # Return NULL if there's a warning
+  }, error = function(e) {
+    message("Error for ", var, ": ", e$message)
+    return(NULL)  # Return NULL if there's an error
+  })
+
+
+  if (!is.null(chi_square_test)) {
+    chi_square_results <- rbind(chi_square_results, data.frame(
+      Variable = label_map[var],
+      Df = chi_square_test$parameter,
+      X_Squared = chi_square_test$statistic,
+      P_Value = chi_square_test$p.value
+    ))
+  }
 }
+chi_square_results <- chi_square_results[, -1]
 
-rownames(chi_square_results) <- Label
+# Use the label_map you created earlier to set the row names to the descriptive labels
+rownames(chi_square_results) <- label_map[chi_var]
 
-
-chi_square_results %>% 
- kable() %>% 
- kable_styling( bootstrap_options = c("striped", "hover", "condensed")) %>% 
-    footnote(general_title = "\n", general = "Table 1")
+# Generate the table without the first column of code variable names
+kable(chi_square_results, col.names = c("Degrees of Freedom", "Chi-Squared", "P-Value")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  footnote(general_title = "\n", general = "Table 1: Chi-square Test Results for Recidivism Variables")
 ```
 
 ## Numeric Variables
@@ -229,10 +250,12 @@ numeric_var %>%
 
 
 ```{r}
-anova_var <- c(recidivism_within_3years, residence_puma,supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive)
+numeric_var <- recidivism %>% 
+  select(recidivism_within_3years, supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive)  
+  
+anova_var <- c("recidivism_within_3years","supervision_risk_score_first", "percent_days_employed","avg_days_per_drugtest", "drugtests_thc_positive", "drugtests_meth_positive","drugtests_cocaine_positive")
 
-new_names <- c("residence_puma" = "Residence PUMA",
-                     "supervision_risk_score_first"= "Supervision Risk Score",
+new_names <- c( "supervision_risk_score_first"= "Supervision Risk Score",
                      "percent_days_employed" = "Percent Days Employed",
                      "jobs_per_year"= "Jobs Per Year",
                      "avg_days_per_drugtest" = "Avg Days Per Drugtest",
@@ -248,7 +271,7 @@ anova_results <- data.frame(
                             P_Value = numeric(), stringsAsFactors = FALSE)
 
 for (var in anova_var) {
-  anova_result <- aov(numeric_var[[var]] ~ numeric_var$y)
+  anova_result <- aov(numeric_var[[var]] ~ numeric_var$recidivism_within_3years)
   summary_data <- summary(anova_result)[[1]][, c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")][1:1, ]
   anova_results <- rbind(anova_results, summary_data)
 }
