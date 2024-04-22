@@ -60,7 +60,7 @@ recidivism <- recidivism %>%
 ```
 
 
-## Exploratory Analysis - Recidivism
+# Exploratory Analysis - Recidivism
 
 
 ```{r cache = TRUE, warning = FALSE, message = FALSE}
@@ -76,7 +76,7 @@ ggplot(data = recidivism) +
 
 ## Categorical Variables
 
-```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
+```{r fig.height=12, fig.width=12, message=FALSE, warning=FALSE, cache=TRUE}
 cat_var <- recidivism %>%
   select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations,prior_arrest_episodes_felony,prior_arrest_episodes_misd,delinquency_reports,residence_changes,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_conviction_episodes_7) %>%
   pivot_longer(cols = -recidivism_within_3years, names_to = "Variable", values_to = "value") %>%
@@ -239,7 +239,7 @@ numeric_var %>%
 
 
 
-```{r cache = TRUE, warning = FALSE, message = FALSE, fig.height=10}
+```{r fig.height=10, fig.width=16, message=FALSE, warning=FALSE, cache=TRUE}
 numeric_var %>%
     gather(Variable, value, -recidivism_within_3years) %>%
     ggplot() + 
@@ -803,56 +803,89 @@ print(ggroc_combined)
 
 #  Cost-Benefit Analysis 
 
-```{r}
-cost_benefit_table <-
-   testProbs %>%
-      count(predOutcome, Outcome) %>%
-      summarize(True_Negative = sum(n[predOutcome==0 & Outcome==0]),
-                True_Positive = sum(n[predOutcome==1 & Outcome==1]),
-                False_Negative = sum(n[predOutcome==0 & Outcome==1]),
-                False_Positive = sum(n[predOutcome==1 & Outcome==0])) %>%
-       gather(Variable, Count) %>%
-       mutate(Revenue =
-               ifelse(Variable == "True_Negative", Count * 0,
-               ifelse(Variable == "True_Positive",((.35 - .1) * Count),
-               ifelse(Variable == "False_Negative", (-0.35) * Count,
-               ifelse(Variable == "False_Positive", (-0.1) * Count, 0))))) %>%
-    bind_cols(data.frame(Description = c(
-              "We correctly predicted no recidivism",
-              "We correctly predicted a recidivism",
-              "We predicted no recidivism but the crimer recidivate",
-              "We predicted a recidivism but the crimer did not recidivate")))
+As the final step, we conduct a cost-benefit analysis to evaluate
+We cite some hypothetical numbers for the cost associated with keeping someone in prison versus the costs associated with recidivism (arrest, trial, etc.). Here are some assumptions we chose:
 
-kable(cost_benefit_table,
-       caption = "Cost/Benefit Table") %>% kable_styling()
+**Costs of Incarceration:**
+Cost of keeping someone in prison per year: $50,000.
+This cost includes expenses for security, food, health care, and administration.
+**Costs of Recidivism:**
+Arrest costs: $2,000 per arrest.
+Trial and court costs: $15,000 per case.
+Probation or parole supervision costs: $4,000 per year.
+Average number of arrests for recidivists: 2.
+Probability of going to trial if arrested: 0.5.
+Economic Benefits of Avoiding Incarceration:
+Estimated value of productive work if not incarcerated: $30,000 per year.
+Cost savings from reduced prison population: $10,000 per year (due to economies of scale, reduced need for facilities, etc.).
+With these assumptions, let's frame the cost-benefit calculations for each possible outcome of the prediction model:
+
+True Negative (TN): Individuals correctly predicted not to recidivate and thus not incarcerated.
+Benefit: $50,000 (cost of incarceration avoided) + $30,000 (value of productive work) + $10,000 (cost savings) = $90,000.
+True Positive (TP): Individuals correctly predicted to recidivate and thus incarcerated.
+Cost: $50,000 (cost of keeping someone in prison) - $30,000 (value of productive work not realized) = $20,000 net cost.
+False Negative (FN): Individuals incorrectly predicted not to recidivate but they do.
+Cost: $2,000 (arrest costs) + 0.5 * $15,000 (trial costs on average) + 2 * $4,000 (probation costs for two years) = $28,000.
+False Positive (FP): Individuals incorrectly predicted to recidivate and thus incarcerated.
+Cost: $50,000 (unnecessary cost of incarceration) + $30,000 (loss of productive work) + $10,000 (cost savings not realized) = $90,000.
+
+```{r}
+cost_benefit_table <- testProbs %>%
+  count(predOutcome, Outcome) %>%
+  summarize(
+    True_Negative = sum(n[predOutcome == 0 & Outcome == 0]),
+    True_Positive = sum(n[predOutcome == 1 & Outcome == 1]),
+    False_Negative = sum(n[predOutcome == 0 & Outcome == 1]),
+    False_Positive = sum(n[predOutcome == 1 & Outcome == 0])
+  ) %>%
+  gather(Variable, Count) %>%
+  mutate(
+    Revenue = case_when(
+      Variable == "True_Negative" ~ Count * 90, # $90,000 net benefit for TN
+      Variable == "True_Positive" ~ -Count * 20, # $20,000 net cost for TP
+      Variable == "False_Negative" ~ -Count * 28, # $28,000 net cost for FN
+      Variable == "False_Positive" ~ -Count * 90 # $90,000 net cost for FP
+    )
+  ) %>%
+  bind_cols(data.frame(Description = c(
+    "We correctly predicted no recidivism",
+    "We correctly predicted a recidivism",
+    "We predicted no recidivism but the crime did recidivate",
+    "We predicted a recidivism but the crime did not recidivate"
+  )))
+
+kable(cost_benefit_table, caption = "Cost/Benefit Analysis") %>%
+  kable_styling()
 ```
 
 ```{r}
 iterateThresholds <- function(data) {
-  x = .01
+  x <- 0.01
   all_prediction <- data.frame()
   while (x <= 1) {
-  
-  this_prediction <-
-      testProbs %>%
+    this_prediction <- data %>%
       mutate(predOutcome = ifelse(Probs > x, 1, 0)) %>%
       count(predOutcome, Outcome) %>%
-      summarize(True_Negative = sum(n[predOutcome==0 & Outcome==0]),
-                True_Positive = sum(n[predOutcome==1 & Outcome==1]),
-                False_Negative = sum(n[predOutcome==0 & Outcome==1]),
-                False_Positive = sum(n[predOutcome==1 & Outcome==0])) %>%
-     gather(Variable, Count) %>%
-     mutate(Revenue =
-               ifelse(Variable == "True_Negative", Count * 0,
-               ifelse(Variable == "True_Positive",((.35 - .1) * Count),
-               ifelse(Variable == "False_Negative", (-0.35) * Count,
-               ifelse(Variable == "False_Positive", (-0.1) * Count, 0)))),
-            Threshold = x)
-  
-  all_prediction <- rbind(all_prediction, this_prediction)
-  x <- x + .01
+      summarize(
+        True_Negative = sum(n[predOutcome == 0 & Outcome == 0]),
+        True_Positive = sum(n[predOutcome == 1 & Outcome == 1]),
+        False_Negative = sum(n[predOutcome == 0 & Outcome == 1]),
+        False_Positive = sum(n[predOutcome == 1 & Outcome == 0])
+      ) %>%
+      gather(Variable, Count) %>%
+      mutate(
+        Revenue = case_when(
+          Variable == "True_Negative" ~ Count * 90,  # $90,000 net benefit for TN
+          Variable == "True_Positive" ~ -Count * 20, # $20,000 net cost for TP
+          Variable == "False_Negative" ~ -Count * 28, # $28,000 net cost for FN
+          Variable == "False_Positive" ~ -Count * 90  # $90,000 net cost for FP
+        ),
+        Threshold = x
+      )
+    all_prediction <- rbind(all_prediction, this_prediction)
+    x <- x + .01
   }
-return(all_prediction)
+  return(all_prediction)
 }
 
 ```
