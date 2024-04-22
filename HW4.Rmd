@@ -419,18 +419,20 @@ caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome,
 
 
 
-## Cross Validation （有问题！）
+## Cross Validation 
 
 ```{r}
-ctrl <- trainControl(method = "cv", number = 100, classProbs=TRUE, summaryFunction=twoClassSummary)
+ctrl <- trainControl(method = "cv", number = 100, classProbs = TRUE, summaryFunction = twoClassSummary)
 
-cvFit <- train(recidivism_within_3years_numreic~ .,
-                  data=recidivism %>% 
-                    dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction), 
-                method="glm", family="binomial",
-                metric="ROC", trControl = ctrl)
+# Fit the model
+cvFit <- train(recidivism_within_3years ~ .,
+               data = recidivism %>% 
+                 select(recidivism_within_3years, gender, race, age_at_release, dependents, supervision_level_first, education_level, prison_years, prison_offense, violations, supervision_risk_score_first, percent_days_employed, jobs_per_year, drugtests_thc_positive, drugtests_cocaine_positive, drugtests_meth_positive, gang_affiliated, prior_arrest_episodes_felony, prior_arrest_episodes_misd, prior_arrest_episodes_property, prior_conviction_episodes_6, prior_conviction_episodes_5, prior_conviction_episodes_4, prior_conviction_episodes_3, prior_conviction_episodes_2, prior_conviction_episodes_1, prior_revocations_probation, prior_revocations_parole, delinquency_reports, residence_changes, violations_instruction),
+               method = "glm", family = "binomial",
+               metric = "ROC", trControl = ctrl)
 
-cvFit
+# Output the fit
+print(cvFit)
 ```
 
 
@@ -439,9 +441,9 @@ dplyr::select(cvFit$resample, -Resample) %>%
   gather(metric, value) %>%
   left_join(gather(cvFit$results[2:4], metric, mean)) %>%
   ggplot(aes(value)) + 
-    geom_histogram(bins=35, fill = "#FF006A") +
+    geom_histogram(bins=35, fill = "#6baed6") +
     facet_wrap(~metric) +
-    geom_vline(aes(xintercept = mean), colour = "#981FAC", linetype = 3, size = 1.5) +
+    geom_vline(aes(xintercept = mean), colour = "#08519c", linetype = 3, size = 1.5) +
     scale_x_continuous(limits = c(0, 1)) +
     labs(x="Goodness of Fit", y="Count", title="CV Goodness of Fit Metrics",
          subtitle = "Across-fold mean reprented as dotted lines")
@@ -583,6 +585,15 @@ aucTable <-
   summarize(AUC = auc(class,probs)) %>% 
   mutate(AUC = as.character(round(AUC, 2)))
 
+auc_list <- by(data = data.frame(class = testProbs_race$class, probs = testProbs_race$probs, race = testProbs_race$Race), 
+               INDICES = testProbs_race$Race, 
+               FUN = function(x) auc(x$class, x$probs))
+
+# Create a data frame with the results
+auc_df <- do.call(rbind, lapply(auc_list, function(x) {
+  data.frame(race = names(x), AUC = x[[1]])
+}))
+
 mutate(testProbs_race.thresholds, pointSize = ifelse(Threshold == .48, 24, 16)) %>%
   ggplot(aes(Rate_FP, Rate_TP, colour=Race)) + 
   geom_point(aes(shape = pointSize)) + geom_line() + scale_shape_identity() +
@@ -721,7 +732,7 @@ filter(testProbs.thresholds, Threshold == .5)  %>%
 ```
 
 
-#  Cost-Benefit Analysis （差不多了！）
+#  Cost-Benefit Analysis 
 
 ```{r}
 cost_benefit_table <-
