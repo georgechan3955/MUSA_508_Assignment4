@@ -699,7 +699,7 @@ testProbs_race_gender <-
              Race_Gender = recidivismTest$race_gender)
 ```
 
-And then comparing the observation and the predicted result from our model with the breakdown of race-gender groups, the plot below uncovers biases that might affect specific intersectional groups, such as Black Females, Black Male and White Males, which are the groups that are over predicted as recidivism by our model.
+And then comparing the observation and the predicted result from our model with the breakdown of race-gender groups, the plot below uncovers biases that might affect specific intersectional groups, such as Black Male and White Males, which are the groups that are over predicted as recidivism by our model.
 
 ```{r fig.width=12}
 mutate(testProbs_race_gender, predClass = ifelse(probs >= .5, 1, 0)) %>%
