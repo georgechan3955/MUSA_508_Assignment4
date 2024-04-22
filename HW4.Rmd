@@ -923,12 +923,12 @@ whichThreshold %>%
   ggplot(.,aes(Threshold, Revenue, colour = Variable)) +
   geom_point() +
   scale_colour_manual(values = palette5[c(5, 1:3)]) +    
-  labs(title = "Figure 5.1: Revenue by confusion matrix type and threshold",
+  labs(title = "Figure 7: Revenue by confusion matrix type and threshold",
        y = "Revenue") +
   theme_minimal() +
   guides(colour=guide_legend(title = "Confusion Matrix")) 
 ```
-As seen in the previous figure and in figure 5.2, revenue begins to normalize or flatten out at 0.75 This means that if as a department we want to maximize our budget, we should only allocate to those in the thresholds between .75 to 1.
+As seen in the previous figure and in figure 8, revenue begins to normalize or flatten out at 0.75 This means that if as a department we want to maximize our budget, we should only allocate to those in the thresholds between .75 to 1.
 
 ```{r}
 whichThreshold_revenue <-
@@ -948,7 +948,7 @@ whichThreshold_revenue <-
   ggplot(whichThreshold_revenue)+
   geom_line(aes(x = Threshold, y = Total_Revenue))+
   geom_vline(xintercept =  pull(arrange(whichThreshold_revenue, -Total_Revenue)[1,1]))+
-    labs(title = "Figure 5.2: Model Revenues By Threshold For Test Sample",
+    labs(title = "Figure 8: Model Revenues By Threshold For Test Sample",
          subtitle = "Vertical Line Denotes Optimal Threshold")
 
 ```
