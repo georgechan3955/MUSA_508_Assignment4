@@ -242,7 +242,7 @@ numeric_var %>%
 
 
 
-
+## ANOVA TEST
 
 ```{r}
 numeric_var <- recidivism %>%
@@ -369,13 +369,18 @@ coefficients_table %>%
 ```
 
 ```{r}
-pR2(recidivismModel) #McFadden: 0.246
+pR2(recidivismModel) 
 ```
 
 ```{r}
 testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numreic), Probs = predict(recidivismModel, recidivismTest, type= "response"))
 head(testProbs)
 ```
+
+Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
+
+
+
 
 ```{r}
 ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) + 
@@ -403,7 +408,10 @@ ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
 ```{r}
 pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 ```
+
 ## Confusion Matrix
+
+The Confusion Matrix shows the number of observed instances of using the tax credit that are predicted as such. Each entry in the matrix provides a different comparison between observed and predicted, given the 30% threshold.
 
 ```{r}
 testProbs <- 
@@ -419,9 +427,9 @@ caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome,
 
 ## Cross Validation 
 
-Next, we performed cross validation test for both of original model and improved model. The trainControl parameter is set to run 100 k-folds and to output predicted probabilities, classProbs, for two classes, those who accepted the credit and those who did not. Additional parameters output AUC (the train function refers to this as ‘ROC’) and confusion metrics for each fold. The three metrics in the cvFit output are for mean AUC, Sensitivity, and Specificity across all 100 folds. Here, the ROC for our original model and improved model are 0.76 and 0.70, the Sensitivity are 0.97 and 0.98, while the Specificity are 0.21 and 0.17 respectively.
+Next, we performed cross validation test for our model. The trainControl parameter is set to run 100 k-folds and to output predicted probabilities, classProbs, for two classes, recidivism and non-recidivism. Additional parameters output AUC (the train function refers to this as ‘ROC’) and confusion metrics for each fold. The three metrics in the cvFit output are for mean AUC, Sensitivity, and Specificity across all 100 folds. Here, the ROC for our model is 0.775, the Sensitivity is 0.8, while the Specificity is 0.6.
 
-The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Both models generalizes well to sensitivity – the rate it correctly predicts credit acceptance, instead of specificity. It seems our would-be decision-making tool is inconsistent in how it predicts the credit acceptance. This inconsistency will have a direct effect on the marketing and resource allocation process should this algorithm be put into production.
+
 
 
 
@@ -438,7 +446,7 @@ cvFit <- train(recidivism_within_3years ~ .,
 # Output the fit
 print(cvFit)
 ```
-
+The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Both models generalizes well to sensitivity – the rate it correctly predicts credit acceptance, instead of specificity. It seems our would-be decision-making tool is inconsistent in how it predicts the credit acceptance. This inconsistency will have a direct effect on the marketing and resource allocation process should this algorithm be put into production.
 
 ```{r}
 dplyr::select(cvFit$resample, -Resample) %>%
@@ -655,11 +663,11 @@ recidivismTest  <- recidivism[-trainIndex,]
 
 ```{r}
 reg.norace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
-                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property),
+                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
 reg.withrace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
-                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property, race_gender),
+                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
 ```
