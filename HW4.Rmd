@@ -69,7 +69,7 @@ ggplot(data = recidivism) +
 
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 cat_var <- recidivism %>%
-  select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations,prior_arrest_episodes_felony,prior_arrest_episodes_misd,delinquency_reports,residence_changes,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1) %>%
+  select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations,prior_arrest_episodes_felony,prior_arrest_episodes_misd,delinquency_reports,residence_changes,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_conviction_episodes_7) %>%
   pivot_longer(cols = -recidivism_within_3years, names_to = "Variable", values_to = "value") %>%
   count(Variable, value, recidivism_within_3years) %>%
   ggplot(aes(x = value, y = n, fill = recidivism_within_3years)) + 
@@ -88,12 +88,13 @@ cat_var <- recidivism %>%
                  prior_arrest_episodes_misd = "Prior Arrest Episodes Misd",
                  delinquency_reports="Delinquency Reports",
                  residence_changes = "Residence Changes",
-                 prior_conviction_episodes_6 = "prior_conviction_episodes_6",
-                 prior_conviction_episodes_5 = "prior_conviction_episodes_5",
-                 prior_conviction_episodes_4 = "prior_conviction_episodes_4",
-                 prior_conviction_episodes_3 = "prior_conviction_episodes_3",
-                 prior_conviction_episodes_2 = "prior_conviction_episodes_2",
-                 prior_conviction_episodes_1 = "prior_conviction_episodes_1",
+                 prior_conviction_episodes_7 = "Prior Conviction Episodes:Gun Charges",
+                 prior_conviction_episodes_6 = "Prior Conviction Episodes:Domestic Violence Charges",
+                 prior_conviction_episodes_5 = "Prior Conviction Episodes:Probation Violation Charges",
+                 prior_conviction_episodes_4 = "Prior Conviction Episodes:Drug",
+                 prior_conviction_episodes_3 = "Prior Conviction Episodes:Property",
+                 prior_conviction_episodes_2 = "Prior Conviction Episodes:Violence",
+                 prior_conviction_episodes_1 = "Prior Conviction Episodes:Misdemeanor",
                  employment_exempt = "Employment Exempt"))) +
     scale_fill_manual(values = palette2, name = "Recidivism_within_3years") +
     labs(x = "Category", y = "Count",
@@ -392,7 +393,7 @@ ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) +
        title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
         legend.position = "none")
 ```
-## Logistic Regression
+## ROC Curve
 ```{r}
 ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
   geom_roc(n.cuts = 50, labels = FALSE, colour = "#FE9900") +
