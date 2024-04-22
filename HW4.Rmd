@@ -1,12 +1,12 @@
 ---
 title: "HW4"
-author: "Xiayuanshan Gao"
+author: "Xiayuanshan Gao, Jiahang Li, Yuhao Chen"
 date: "2024-04-17"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE,cache = TRUE)
 options(scipen=10000000)
 library(RSocrata)
 library(tidyverse)
@@ -25,11 +25,9 @@ palette4 <- c("#D2FBD4","#92BCAB","#527D82","#123F5A")
 palette2 <- c("#6baed6","#08519c")
 ```
 
-## R Markdown
+# Intro
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
 recidivism <- 
@@ -600,9 +598,9 @@ for (i in seq_along(roc_list)) {
   auc_value <- auc(roc_data)
   ggroc_combined <- ggroc_combined + 
     geom_line(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
-              aes(x = fp, y = tp), color = palette2[i], size = 1) +
+              aes(x = fp, y = tp), color = palette2[i], size = 0.5) +
     geom_point(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
-               aes(x = fp, y = tp), color = palette2[i], size = 2) +
+               aes(x = fp, y = tp), color = palette2[i], size = 0.3) +
     annotate("text", x = max_specificity - 0.1, y = min_sensitivity + 0.05 * (length(roc_list) - i + 1), 
              label = paste(names(roc_list)[i], "AUC =", round(auc_value, 3)), 
              hjust = 1, color = palette2[i], size = 3.5)
@@ -783,7 +781,7 @@ for (i in seq_along(roc_list)) {
     geom_line(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
               aes(x = fp, y = tp), color = palette4[i], size = 0.5) +
     geom_point(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
-               aes(x = fp, y = tp), color = palette4[i], size = 1) +
+               aes(x = fp, y = tp), color = palette4[i], size = 0.3) +
     annotate("text", x = max_specificity - 0.1, y = min_sensitivity + 0.05 * (length(roc_list) - i + 1), 
              label = paste(names(roc_list)[i], "AUC =", round(auc_value, 3)), 
              hjust = 1, color = palette4[i], size = 3.5)
