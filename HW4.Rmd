@@ -305,12 +305,10 @@ anova_results %>%
 
 # Logistic Regression
 
-
-
-
 We then fit a logistic regression containing all variables in our dataset. To do so, we split our data randomly into 65% of training dataset and 35% of testing dataset. Some of our variables, such as Lien and Education, have single occurrence and therefore needs to be put into the training set to avoid new levels appearing in the testing set. This model shows that some indicators are significantly correlated with credit acceptance with p < 0.05. This include age, some categories of job, ways of contact, month last contacted, previous campaign outcome, unemployment rate, consumer price and confidence indices. The majority of predictors are not significant.
 
 ## Feature Engineering
+
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 # age
 recidivism <-recidivism %>%
@@ -380,8 +378,6 @@ head(testProbs)
 Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
 
 
-
-
 ```{r}
 ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) + 
   geom_density() +
@@ -423,13 +419,9 @@ caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome,
 ```
 
 
-
-
 ## Cross Validation 
 
 Next, we performed cross validation test for our model. The trainControl parameter is set to run 100 k-folds and to output predicted probabilities, classProbs, for two classes, recidivism and non-recidivism. Additional parameters output AUC (the train function refers to this as ‘ROC’) and confusion metrics for each fold. The three metrics in the cvFit output are for mean AUC, Sensitivity, and Specificity across all 100 folds. Here, the ROC for our model is 0.775, the Sensitivity is 0.8, while the Specificity is 0.6.
-
-
 
 
 
@@ -446,7 +438,9 @@ cvFit <- train(recidivism_within_3years ~ .,
 # Output the fit
 print(cvFit)
 ```
+
 The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Both models generalizes well to sensitivity – the rate it correctly predicts credit acceptance, instead of specificity. It seems our would-be decision-making tool is inconsistent in how it predicts the credit acceptance. This inconsistency will have a direct effect on the marketing and resource allocation process should this algorithm be put into production.
+
 
 ```{r}
 dplyr::select(cvFit$resample, -Resample) %>%
@@ -969,13 +963,13 @@ whichThreshold %>%
   ggplot(.,aes(Threshold, Revenue, colour = Variable)) +
   geom_point() +
   scale_colour_manual(values = palette5[c(5, 1:3)]) +    
-  labs(title = "Figure 7: Revenue by confusion matrix type and threshold",
+  labs(title = "Revenue by confusion matrix type and threshold",
        y = "Revenue") +
   theme_minimal() +
   guides(colour=guide_legend(title = "Confusion Matrix")) 
 ```
 
-As seen in the previous figure and in figure 8, revenue begins to normalize or flatten out at 0.75 This means that if as a department we want to maximize our budget, we should only allocate to those in the thresholds between .75 to 1.
+As seen in the above and below fugures, revenue begins to normalize or flatten out at 0.75 This means that if as a department we want to maximize our budget, we should only allocate to those in the thresholds between .75 to 1.
 
 ```{r}
 whichThreshold_revenue <-
@@ -995,7 +989,7 @@ whichThreshold_revenue <-
   ggplot(whichThreshold_revenue)+
   geom_line(aes(x = Threshold, y = Total_Revenue))+
   geom_vline(xintercept =  pull(arrange(whichThreshold_revenue, -Total_Revenue)[1,1]))+
-    labs(title = "Figure 8: Model Revenues By Threshold For Test Sample",
+    labs(title = "Model Revenues By Threshold For Test Sample",
          subtitle = "Vertical Line Denotes Optimal Threshold")
 
 ```
