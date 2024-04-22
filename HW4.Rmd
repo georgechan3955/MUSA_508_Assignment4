@@ -462,7 +462,7 @@ recidivism %>%
     geom_bar(stat = "identity", position = "dodge", fill = palette2) +
     labs(title = "Recidivism rate by race",
          y = "Rate", x = "Race") +
-    theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1))
 ```
 
 
@@ -497,7 +497,7 @@ mutate(testProbs_race, predClass = ifelse(probs >= .5, 1, 0)) %>%
     scale_fill_manual(values = palette2) +
     facet_wrap(~Variable) +
     labs(title = "Observed and predicted recidivism", x = "Race", y = "Rate") +
-    theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1))
 ```
 ```{r}
 iterateThresholds <- function(data, observedClass, predictedProbs, group) {
@@ -575,7 +575,7 @@ filter(testProbs_race.thresholds, Threshold == .5)  %>%
       scale_fill_manual(values = palette2) +
       labs(title="Confusion matrix rates by race",
            subtitle = "50% threshold", x = "Outcome",y = "Rate") +
-      theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+      theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1)) 
 ```
 ```{r}
 # Calculate the ROC curve and AUC for each race
@@ -677,7 +677,7 @@ mutate(testProbs_race_gender, predClass = ifelse(probs >= .5, 1, 0)) %>%
     scale_fill_manual(values = palette4) +
     facet_wrap(~Variable) +
     labs(title = "Observed and predicted recidivism", x = "Race_Gender", y = "Rate") +
-    theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1))
 ```
 
 ```{r}
@@ -756,7 +756,7 @@ filter(testProbs_Race_Gender.thresholds, Threshold == .5)  %>%
       scale_fill_manual(values = palette4) +
       labs(title="Confusion matrix rates by race and gender",
            subtitle = "50% threshold", x = "Outcome",y = "Rate") +
-      theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+      theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1)) 
 ```
 ```{r}
 # Calculate the ROC curve and AUC for each race
