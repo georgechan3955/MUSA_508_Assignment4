@@ -308,10 +308,14 @@ anova_results %>%
 
 
 
-We then fit a logistic regression containing all variables in our dataset. To do so, we split our data randomly into 65% of training dataset and 35% of testing dataset. Some of our variables, such as Lien and Education, have single occurrence and therefore needs to be put into the training set to avoid new levels appearing in the testing set. This model shows that some indicators are significantly correlated with credit acceptance with p < 0.05. This include age, some categories of job, ways of contact, month last contacted, previous campaign outcome, unemployment rate, consumer price and confidence indices. The majority of predictors are not significant.
+We then fit a logistic regression containing the following variables: 
+
+
+
+We then split our data randomly into 65% of training data set and 35% of testing data set.This model shows that some indicators are significantly correlated with recidivism with p < 0.05. This include age, some categories of job, ways of contact, month last contacted, previous campaign outcome, unemployment rate, consumer price and confidence indices. We have also tried to categorize age, job number to create new variables. However, this reduces the accuracy of the model, so we would stick with the original variables.
 
 ## Feature Engineering
-```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
+```{r cache = TRUE, warning = FALSE, message = FALSE}
 # age
 recidivism <-recidivism %>%
   mutate(age = case_when(
@@ -368,18 +372,14 @@ coefficients_table %>%
   footnote(general_title = "\n", general = "Table 3")
 ```
 
-```{r}
-pR2(recidivismModel) 
-```
+
+
+Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
 
 ```{r}
 testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numreic), Probs = predict(recidivismModel, recidivismTest, type= "response"))
 head(testProbs)
 ```
-
-Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
-
-
 
 
 ```{r}
@@ -395,14 +395,15 @@ ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) +
 
 ## ROC Curve
 
-We computed the Area Under the Receiver Operating Characteristic Curve (AUC-ROC) metric to further evaluate the performance of our improved model. The AUC value ranges from 0 to 1, where 0.5 means a model with no discriminatory power (it performs as well as random chance), and 1 means a perfect model (it perfectly distinguishes between positive and negative cases).Generally, an AUC between 0.7 and 0.8 is considered acceptable and indicates a fair to good performance of the model. While there is room for improvement, a score of 0.74 suggests that the model is capturing important patterns in the data and making predictions better than random guessing.
+
+We assessed the performance of our enhanced model using the Area Under the Receiver Operating Characteristic Curve (AUC-ROC) metric. The AUC value, which ranges from 0 to 1, gauges the model's discriminatory ability: a score of 0.5 indicates no discrimination (equivalent to random guessing), while a score of 1 signifies perfect discrimination. Generally, an AUC between 0.7 and 0.8 is deemed acceptable, reflecting fair to good model performance. Although there is potential for further refinement, our model's AUC of 0.77 demonstrates its effectiveness in identifying significant patterns in the data and predicting outcomes more accurately than chance.
 
 ```{r}
 ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
   geom_roc(n.cuts = 50, labels = FALSE, colour = "#FE9900") +
   style_roc(theme = theme_grey) +
   geom_abline(slope = 1, intercept = 0, size = 1.5, color = 'grey') +
-  labs(title = "Figure 5: ROC Curve - Recidivism")
+  labs(title = "ROC Curve - Recidivism")
 ```
 
 ```{r}
@@ -411,7 +412,15 @@ pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 
 ## Confusion Matrix
 
-The Confusion Matrix shows the number of observed instances of using the tax credit that are predicted as such. Each entry in the matrix provides a different comparison between observed and predicted, given the 30% threshold.
+The Confusion Matrix shows the rate at which we got True Positives (aka Sensitivity), False Positives, True Negatives (aka Specificity) and False Negatives for the 30% threshold.
+
+In this case,
+* True Positives: Predicted correctly the individuals who committed recidivism.
+* False Positives: We predicted a recidivism but the crime did not recidivate.
+* True Negatives: Predicted correctly the individuals who did not commit recidivism.
+* False Negatives: We predicted no recidivism but the crime did recidivate.
+
+This analysis prioritizes sensitivity, aiming to predict the likelihood of recidivism accurately. Our model achieves a high sensitivity rate of 0.994 and a lower specificity of 0.31. This outcome is acceptable because, in this context, prioritizing true positive predictions is crucial for minimizing losses and reducing social costs
 
 ```{r}
 testProbs <- 
@@ -419,7 +428,7 @@ testProbs <-
   mutate(predOutcome  = as.factor(ifelse(testProbs$Probs > 0.3 , 1, 0)))
 
 caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome, 
-                       positive = "1")
+                       positive = "0")
 ```
 
 
@@ -427,7 +436,7 @@ caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome,
 
 ## Cross Validation 
 
-Next, we performed cross validation test for our model. The trainControl parameter is set to run 100 k-folds and to output predicted probabilities, classProbs, for two classes, recidivism and non-recidivism. Additional parameters output AUC (the train function refers to this as ‘ROC’) and confusion metrics for each fold. The three metrics in the cvFit output are for mean AUC, Sensitivity, and Specificity across all 100 folds. Here, the ROC for our model is 0.775, the Sensitivity is 0.8, while the Specificity is 0.6.
+Next, we performed cross validation test for our model. The trainControl parameter is configured to execute 100 k-fold cross-validation runs, producing predicted probabilities (classProbs) for two outcomes: recidivism and non-recidivism. In addition, it generates the Area Under the Curve (AUC), referred to as 'ROC' in the train function, along with confusion matrices for each fold. The cumulative metrics reported in the cvFit output encompass the mean AUC, Sensitivity, and Specificity across all 100 folds. In this instance, our model's ROC is 0.775, Sensitivity is 0.6, and Specificity is 0.8, indicating a balanced performance in both identifying positive cases and correctly ruling out negative ones.
 
 
 
@@ -446,7 +455,7 @@ cvFit <- train(recidivism_within_3years ~ .,
 # Output the fit
 print(cvFit)
 ```
-The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Both models generalizes well to sensitivity – the rate it correctly predicts credit acceptance, instead of specificity. It seems our would-be decision-making tool is inconsistent in how it predicts the credit acceptance. This inconsistency will have a direct effect on the marketing and resource allocation process should this algorithm be put into production.
+The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Based on the result, our model generalizes well to ROC, sensitivity and specificity. To be more specific, our model generalizes well with respect to the rate it correctly predicts No_recidivism and recidivism. Our model is consistent in how it predicts the outcome,recidivism.
 
 ```{r}
 dplyr::select(cvFit$resample, -Resample) %>%
@@ -882,7 +891,7 @@ whichThreshold %>%
 ```{r}
 whichThreshold_revenue <- 
   whichThreshold %>% 
-    mutate(TookCredit = ifelse(Variable == "True_Positive", (Count * .25),
+    mutate(Recidivism = ifelse(Variable == "True_Positive", (Count * .25),
                          ifelse(Variable == "False_Negative", Count, 0))) %>%
   group_by(Threshold) %>% 
     summarize(Total_Revenue = sum(Revenue),
@@ -897,9 +906,9 @@ ggplot(whichThreshold_revenue)+
          subtitle = "Vertical Line Denotes Optimal Threshold"),
 # Credits
 ggplot(whichThreshold_revenue)+ 
-  geom_line(aes(x = Threshold, y = Total_Count_Of_Credits))+
+  geom_line(aes(x = Threshold, y = Total_Count_Of_Recidivism))+
   geom_vline(xintercept =  pull(arrange(whichThreshold_revenue, -Total_Count_Of_Credits)[1,1]))+
-    labs(title = "Figure 11: Total Count of Credits By Threshold",
+    labs(title = "Figure 11: Total Count of Recidivism By Threshold",
          subtitle = "Vertical Line Denotes Optimal Threshold"))
 ```
 
