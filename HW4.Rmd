@@ -126,31 +126,6 @@ print(cat_var)
 
 
 
-
-```{r cache = TRUE, warning = FALSE, message = FALSE}
-cat_var <- recidivism %>%
-  select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations) %>%
-  pivot_longer(cols = -recidivism_within_3years, names_to = "Variable", values_to = "value") %>%
-  group_by(Variable, value, recidivism_within_3years) %>%
-  summarise(mean_value = mean(recidivism_within_3years, na.rm = TRUE), .groups = "drop") %>%
-  ggplot(aes(x = value, y = mean_value, fill = as.factor(recidivism_within_3years))) + 
-    geom_col(position = "dodge") + 
-    facet_wrap(~Variable, scales = "free",ncol = 4) +
-    scale_fill_manual(values = palette2, name="Recidivism_within_3years") +
-    labs(x = "Category", y = "Mean", 
-         title = "Feature associations with the likelihood of Recidivism within 3 years",
-         subtitle = "Categorical outcomes") +
-    theme(
-          plot.subtitle = element_text(size = 12,face = "italic"),
-          plot.title = element_text(size = 18, face = "bold"), 
-          axis.text.x = element_text(angle = 45, vjust = 1),
-          axis.text.y = element_text(size = 8), 
-          axis.title = element_text(size = 9), 
-          panel.background = element_blank(),
-          panel.border = element_rect(colour = "grey", fill = NA, linewidth = 0.8))
-
-```
-
 ## Chi square
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 cat_var <- recidivism %>%
@@ -267,7 +242,7 @@ numeric_var %>%
 
 
 
-
+## ANOVA TEST
 
 ```{r}
 numeric_var <- recidivism %>%
@@ -322,6 +297,19 @@ anova_results %>%
 ```
 
 
+
+
+
+
+
+
+# Logistic Regression
+
+
+
+
+We then fit a logistic regression containing all variables in our dataset. To do so, we split our data randomly into 65% of training dataset and 35% of testing dataset. Some of our variables, such as Lien and Education, have single occurrence and therefore needs to be put into the training set to avoid new levels appearing in the testing set. This model shows that some indicators are significantly correlated with credit acceptance with p < 0.05. This include age, some categories of job, ways of contact, month last contacted, previous campaign outcome, unemployment rate, consumer price and confidence indices. The majority of predictors are not significant.
+
 ## Feature Engineering
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 # age
@@ -347,10 +335,6 @@ recidivism <-recidivism %>%
 
 
 
-
-
-
-# Logistic Regression
 ```{r}
 set.seed(479)
 trainIndex <- createDataPartition(y = paste(recidivism$race) , p = .65,
@@ -385,13 +369,18 @@ coefficients_table %>%
 ```
 
 ```{r}
-pR2(recidivismModel) #McFadden: 0.246
+pR2(recidivismModel) 
 ```
 
 ```{r}
 testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numreic), Probs = predict(recidivismModel, recidivismTest, type= "response"))
 head(testProbs)
 ```
+
+Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
+
+
+
 
 ```{r}
 ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) + 
@@ -402,7 +391,12 @@ ggplot(testProbs, aes(x = Probs, fill = as.factor(Outcome))) +
        title = "Distribution of predicted probabilities by observed outcome") + theme(strip.text.x = element_text(size = 18),
         legend.position = "none")
 ```
+
+
 ## ROC Curve
+
+We computed the Area Under the Receiver Operating Characteristic Curve (AUC-ROC) metric to further evaluate the performance of our improved model. The AUC value ranges from 0 to 1, where 0.5 means a model with no discriminatory power (it performs as well as random chance), and 1 means a perfect model (it perfectly distinguishes between positive and negative cases).Generally, an AUC between 0.7 and 0.8 is considered acceptable and indicates a fair to good performance of the model. While there is room for improvement, a score of 0.74 suggests that the model is capturing important patterns in the data and making predictions better than random guessing.
+
 ```{r}
 ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
   geom_roc(n.cuts = 50, labels = FALSE, colour = "#FE9900") +
@@ -415,6 +409,9 @@ ggplot(testProbs, aes(d = as.numeric(testProbs$Outcome), m = Probs)) +
 pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 ```
 
+## Confusion Matrix
+
+The Confusion Matrix shows the number of observed instances of using the tax credit that are predicted as such. Each entry in the matrix provides a different comparison between observed and predicted, given the 30% threshold.
 
 ```{r}
 testProbs <- 
@@ -430,6 +427,12 @@ caret::confusionMatrix(testProbs$predOutcome, testProbs$Outcome,
 
 ## Cross Validation 
 
+Next, we performed cross validation test for our model. The trainControl parameter is set to run 100 k-folds and to output predicted probabilities, classProbs, for two classes, recidivism and non-recidivism. Additional parameters output AUC (the train function refers to this as ‘ROC’) and confusion metrics for each fold. The three metrics in the cvFit output are for mean AUC, Sensitivity, and Specificity across all 100 folds. Here, the ROC for our model is 0.775, the Sensitivity is 0.8, while the Specificity is 0.6.
+
+
+
+
+
 ```{r}
 ctrl <- trainControl(method = "cv", number = 100, classProbs = TRUE, summaryFunction = twoClassSummary)
 
@@ -443,7 +446,7 @@ cvFit <- train(recidivism_within_3years ~ .,
 # Output the fit
 print(cvFit)
 ```
-
+The figure below plots the distribution of AUC, Sensitivity, and Specificity across the 100 folds. The tighter each distribution is to its mean, the more generalizable the model. Both models generalizes well to sensitivity – the rate it correctly predicts credit acceptance, instead of specificity. It seems our would-be decision-making tool is inconsistent in how it predicts the credit acceptance. This inconsistency will have a direct effect on the marketing and resource allocation process should this algorithm be put into production.
 
 ```{r}
 dplyr::select(cvFit$resample, -Resample) %>%
@@ -686,11 +689,11 @@ recidivismTest  <- recidivism[-trainIndex,]
 
 ```{r}
 reg.norace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
-                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property),
+                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
 reg.withrace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
-                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property, race_gender),
+                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
 ```
@@ -1014,6 +1017,7 @@ For a more balanced approach that maximizes the model’s strengths and minimize
 3. Ensuring constant monitoring and adjustment of the model to adapt to dynamic social factors and economic conditions, thus ensuring its continued relevance and fairness.
 
 Such steps will ensure that the model does not just serve as a predictive tool but also as a catalyst for constructive interventions, aligning with the overarching goals of community development and economic sustainability.
+
 
 
 
