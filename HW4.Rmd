@@ -18,6 +18,7 @@ library(plotROC)
 library(pROC)
 library(lubridate)
 library(ggplot2)
+library(gridExtra)
 
 palette5 <- c("#eff3ff","#bdd7e7","#6baed6","#3182bd","#08519c")
 palette4 <- c("#D2FBD4","#92BCAB","#527D82","#123F5A")
@@ -341,7 +342,7 @@ recidivism <-recidivism %>%
 
 
 
-## Logistic Regression
+# Logistic Regression
 ```{r}
 set.seed(479)
 trainIndex <- createDataPartition(y = paste(recidivism$race) , p = .65,
@@ -564,11 +565,11 @@ iterateThresholds <- function(data, observedClass, predictedProbs, group) {
 ```
 
 ```{r}
-testProbs.thresholds <- 
+testProbs_race.thresholds <- 
   iterateThresholds(data=testProbs_race, observedClass = class, 
                     predictedProbs = probs, group = Race)
 
-filter(testProbs.thresholds, Threshold == .5)  %>%
+filter(testProbs_race.thresholds, Threshold == .5)  %>%
   dplyr::select(Accuracy, Race, starts_with("Rate")) %>%
   gather(Variable, Value, -Race) %>%
     ggplot(aes(Variable, Value, fill = Race)) +
@@ -579,54 +580,83 @@ filter(testProbs.thresholds, Threshold == .5)  %>%
       theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 ```
 ```{r}
-aucTable <- 
-  testProbs_race %>% 
-  group_by(Race) %>% 
-  summarize(AUC = auc(class,probs)) %>% 
-  mutate(AUC = as.character(round(AUC, 2)))
+# Calculate the ROC curve and AUC for each race
+roc_list <- lapply(split(testProbs_race, testProbs_race$Race), function(subdata) {
+  roc(response = subdata$class, predictor = subdata$probs)
+})
 
-auc_list <- by(data = data.frame(class = testProbs_race$class, probs = testProbs_race$probs, race = testProbs_race$Race), 
-               INDICES = testProbs_race$Race, 
-               FUN = function(x) auc(x$class, x$probs))
+# Create an empty ggplot object with the correct aesthetics
+ggroc_combined <- ggplot() + theme_minimal() + 
+  labs(title = "ROC Curves by race", x = "False Positive Rate", y = "True Positive Rate") +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color = "grey")
 
-# Create a data frame with the results
-auc_df <- do.call(rbind, lapply(auc_list, function(x) {
-  data.frame(race = names(x), AUC = x[[1]])
-}))
+# Calculate the position for AUC annotations
+max_specificity <- max(sapply(roc_list, function(x) max(1 - x$specificities)))
+min_sensitivity <- min(sapply(roc_list, function(x) min(x$sensitivities)))
 
-mutate(testProbs_race.thresholds, pointSize = ifelse(Threshold == .48, 24, 16)) %>%
-  ggplot(aes(Rate_FP, Rate_TP, colour=Race)) + 
-  geom_point(aes(shape = pointSize)) + geom_line() + scale_shape_identity() +
-  scale_color_manual(values = palette2) +
-  geom_abline(slope = 1, intercept = 0, size = 1.5, color = 'grey') +
-  annotation_custom(tableGrob(aucTable, rows = NULL), xmin = .65, xmax = 1, ymin = 0, ymax = .25) +
-  labs(title="ROC Curves by race", x="False Positive Rate", y="True Positive Rate") +
-  plotTheme()
+# Adding ROC curves to the plot with annotations for AUC
+for (i in seq_along(roc_list)) {
+  roc_data <- roc_list[[i]]
+  auc_value <- auc(roc_data)
+  ggroc_combined <- ggroc_combined + 
+    geom_line(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
+              aes(x = fp, y = tp), color = palette2[i], size = 1) +
+    geom_point(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
+               aes(x = fp, y = tp), color = palette2[i], size = 2) +
+    annotate("text", x = max_specificity - 0.1, y = min_sensitivity + 0.05 * (length(roc_list) - i + 1), 
+             label = paste(names(roc_list)[i], "AUC =", round(auc_value, 3)), 
+             hjust = 1, color = palette2[i], size = 3.5)
+}
+
+print(ggroc_combined)
 ```
 
-## Racial-Gender Fairness (还没改！)
+
+## Racial-Gender Fairness 
 
 ```{r}
+
+recidivism <- recidivism %>%
+  mutate(gender = case_when(
+    gender == "F" ~ "Female",
+    gender == "M" ~ "Male",
+    TRUE ~ as.character(gender)
+  ))
+
+recidivism <- recidivism %>%
+  mutate(race = case_when(
+    race == "BLACK" ~ "Black",
+    race == "WHITE" ~ "White",
+    TRUE ~ as.character(race)
+  ))
+
+recidivism$race_gender <- interaction(recidivism$race, recidivism$gender, sep = "_")
+
 recidivism %>%
-    group_by(recidivism_within_3years, race) %>%
+    group_by(recidivism_within_3years, race_gender) %>%
     summarize(n = n()) %>%
     mutate(freq = n / sum(n)) %>% filter(recidivism_within_3years == "true") %>%
-    ggplot(aes(reorder(race, -freq), freq)) +
-    geom_bar(stat = "identity", position = "dodge", fill = palette2) +
-    labs(title = "Recidivism rate by race",
-         y = "Rate", x = "Race") +
-    theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    ggplot(aes(reorder(race_gender, -freq), freq)) +
+    geom_bar(stat = "identity", position = "dodge", fill = palette4) +
+    labs(title = "Recidivism rate by race and gender",
+         y = "Rate", x = "Race_Gender") +
+    theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1))
+```
+
+```{r}
+recidivismTrain <- recidivism[ trainIndex,]
+recidivismTest  <- recidivism[-trainIndex,]
 ```
 
 
 
 ```{r}
-reg.noRace <- glm(recidivism_within_3years_numreic ~ ., data = 
-                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property),
+reg.norace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
+                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property),
                 family = "binomial"(link = "logit"))
 
-reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data = 
-                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property),
+reg.withrace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
+                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property, race_gender),
                 family = "binomial"(link = "logit"))
 
 ```
@@ -634,21 +664,21 @@ reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data =
 ```{r}
 testProbs_race_gender <- 
   data.frame(class = recidivismTest$recidivism_within_3years_numreic,
-             probs = predict(reg.noRace, recidivismTest, type = "response"),
-             Race = recidivismTest$race)
+             probs = predict(reg.norace_gender, recidivismTest, type = "response"),
+             Race_Gender = recidivismTest$race_gender)
 ```
 
 ```{r}
 mutate(testProbs_race_gender, predClass = ifelse(probs >= .5, 1, 0)) %>%
-  group_by(Race) %>%
+  group_by(Race_Gender) %>%
   summarize(Observed.recidivism = sum(class) / n(),
             Predicted.recidivism = sum(predClass) / n()) %>%
-  gather(Variable, Value, -Race) %>%
-  ggplot(aes(Race, Value)) +
-    geom_bar(aes(fill = Race), position="dodge", stat="identity") +
-    scale_fill_manual(values = palette2) +
+  gather(Variable, Value, -Race_Gender) %>%
+  ggplot(aes(Race_Gender, Value)) +
+    geom_bar(aes(fill = Race_Gender), position="dodge", stat="identity") +
+    scale_fill_manual(values = palette4) +
     facet_wrap(~Variable) +
-    labs(title = "Observed and predicted recidivism", x = "Race", y = "Rate") +
+    labs(title = "Observed and predicted recidivism", x = "Race_Gender", y = "Rate") +
     theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
@@ -716,19 +746,50 @@ iterateThresholds <- function(data, observedClass, predictedProbs, group) {
 ```
 
 ```{r}
-testProbs.thresholds <- 
+testProbs_Race_Gender.thresholds <- 
   iterateThresholds(data=testProbs_race_gender, observedClass = class, 
-                    predictedProbs = probs, group = Race)
+                    predictedProbs = probs, group = Race_Gender)
 
-filter(testProbs.thresholds, Threshold == .5)  %>%
-  dplyr::select(Accuracy, Race, starts_with("Rate")) %>%
-  gather(Variable, Value, -Race) %>%
-    ggplot(aes(Variable, Value, fill = Race)) +
-      geom_bar(aes(fill = Race), position = "dodge", stat = "identity") +
-      scale_fill_manual(values = palette2) +
-      labs(title="Confusion matrix rates by race",
+filter(testProbs_Race_Gender.thresholds, Threshold == .5)  %>%
+  dplyr::select(Accuracy, Race_Gender, starts_with("Rate")) %>%
+  gather(Variable, Value, -Race_Gender) %>%
+    ggplot(aes(Variable, Value, fill = Race_Gender)) +
+      geom_bar(aes(fill = Race_Gender), position = "dodge", stat = "identity") +
+      scale_fill_manual(values = palette4) +
+      labs(title="Confusion matrix rates by race and gender",
            subtitle = "50% threshold", x = "Outcome",y = "Rate") +
       theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+```{r}
+# Calculate the ROC curve and AUC for each race
+roc_list <- lapply(split(testProbs_race_gender, testProbs_race_gender$Race_Gender), function(subdata) {
+  roc(response = subdata$class, predictor = subdata$probs)
+})
+
+# Create an empty ggplot object with the correct aesthetics
+ggroc_combined <- ggplot() + theme_minimal() + 
+  labs(title = "ROC Curves by race", x = "False Positive Rate", y = "True Positive Rate") +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color = "grey")
+
+# Calculate the position for AUC annotations
+max_specificity <- max(sapply(roc_list, function(x) max(1 - x$specificities)))
+min_sensitivity <- min(sapply(roc_list, function(x) min(x$sensitivities)))
+
+# Adding ROC curves to the plot with annotations for AUC
+for (i in seq_along(roc_list)) {
+  roc_data <- roc_list[[i]]
+  auc_value <- auc(roc_data)
+  ggroc_combined <- ggroc_combined + 
+    geom_line(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
+              aes(x = fp, y = tp), color = palette4[i], size = 0.5) +
+    geom_point(data = data.frame(fp = 1 - roc_data$specificities, tp = roc_data$sensitivities),
+               aes(x = fp, y = tp), color = palette4[i], size = 1) +
+    annotate("text", x = max_specificity - 0.1, y = min_sensitivity + 0.05 * (length(roc_list) - i + 1), 
+             label = paste(names(roc_list)[i], "AUC =", round(auc_value, 3)), 
+             hjust = 1, color = palette4[i], size = 3.5)
+}
+
+print(ggroc_combined)
 ```
 
 
@@ -808,20 +869,27 @@ whichThreshold %>%
 
 
 ```{r}
-
-whichThreshold <- iterateThresholds(testProbs2)
-
 whichThreshold_revenue <- 
-whichThreshold %>% 
-    group_by(Threshold) %>% 
-    summarize(Revenue = sum(Revenue))
+  whichThreshold %>% 
+    mutate(TookCredit = ifelse(Variable == "True_Positive", (Count * .25),
+                         ifelse(Variable == "False_Negative", Count, 0))) %>%
+  group_by(Threshold) %>% 
+    summarize(Total_Revenue = sum(Revenue),
+              Total_Count_Of_Credits = sum(TookCredit))
 
-  ggplot(whichThreshold_revenue)+
-    theme_minimal()+
-  geom_line(aes(x = Threshold, y = Revenue))+
-  geom_vline(xintercept =  pull(arrange(whichThreshold_revenue, -Revenue)[1,1]))+
-    labs(title = "Model Revenues By Threshold For Test Sample",
-         subtitle = "Vertical Line Denotes Optimal Threshold")
+# Revenue 
+grid.arrange(ncol = 1,
+ggplot(whichThreshold_revenue)+ 
+  geom_line(aes(x = Threshold, y = Total_Revenue))+
+  geom_vline(xintercept =  pull(arrange(whichThreshold_revenue, -Total_Revenue)[1,1]))+
+    labs(title = "Figure 10: Total Revenues By Threshold",
+         subtitle = "Vertical Line Denotes Optimal Threshold"),
+# Credits
+ggplot(whichThreshold_revenue)+ 
+  geom_line(aes(x = Threshold, y = Total_Count_Of_Credits))+
+  geom_vline(xintercept =  pull(arrange(whichThreshold_revenue, -Total_Count_Of_Credits)[1,1]))+
+    labs(title = "Figure 11: Total Count of Credits By Threshold",
+         subtitle = "Vertical Line Denotes Optimal Threshold"))
 ```
 
 
