@@ -461,7 +461,11 @@ dplyr::select(cvFit$resample, -Resample) %>%
 
 # Generalizability
 
+This section contrasts observed and predicted recidivism rates given the 50% threshold, focusing on the implications for racial and racial-gender fairness.
+
 ## Racial Fairness
+
+The following chart illustrates a higher recidivism rate for Black individuals compared to White individuals, there is a higher recidivism rate among black individuals than white individuals.
 
 ```{r}
 recidivism %>%
@@ -496,6 +500,8 @@ testProbs_race <-
              Race = recidivismTest$race)
 ```
 
+Furthermore, when comparing observed and predicted recidivism rates by race, the model appears to predict higher rates for both Black and White groups, with a slightly larger disparity for Black individuals, which means the recidivism among black individuals are over-predict.
+
 ```{r}
 mutate(testProbs_race, predClass = ifelse(probs >= .5, 1, 0)) %>%
   group_by(Race) %>%
@@ -509,6 +515,8 @@ mutate(testProbs_race, predClass = ifelse(probs >= .5, 1, 0)) %>%
     labs(title = "Observed and predicted recidivism", x = "Race", y = "Rate") +
     theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1))
 ```
+
+
 ```{r}
 iterateThresholds <- function(data, observedClass, predictedProbs, group) {
   observedClass <- enquo(observedClass)
@@ -572,6 +580,17 @@ iterateThresholds <- function(data, observedClass, predictedProbs, group) {
 }
 ```
 
+
+In the following breakdown plot by confusion matrix, the model exhibits higher predictive accuracy for White individuals and tends to predict recidivism more accurately for this group. 
+
+**False Positive**:For Black individuals, the model has a higher false positive rate, suggesting a tendency to over-predict recidivism. 
+
+**False Negative**: The higher false negative rate for White individuals indicates a tendency to under-predict recidivism. 
+
+In the meantime the model performs better in correctly identifying White individuals who will not recidivate and predicting recidivism for Black individuals. 
+
+**Thus, for black individuals, the model has risk incorrectly predict the non-recidivism while perform better in predicting recidivism; and the situation is reversed for white individuals.**
+
 ```{r}
 testProbs_race.thresholds <- 
   iterateThresholds(data=testProbs_race, observedClass = class, 
@@ -587,6 +606,9 @@ filter(testProbs_race.thresholds, Threshold == .5)  %>%
            subtitle = "50% threshold", x = "Outcome",y = "Rate") +
       theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1)) 
 ```
+
+The following ROC curves compare the model's true positive rate and false positive rate across races. Ideally, the curves should be similar, indicating the model performs equally well for each race. Differences in the curves or AUC values could indicate the model is more or less effective for white over black, suggesting a potential racial bias but not significant.
+
 ```{r}
 # Calculate the ROC curve and AUC for each race
 roc_list <- lapply(split(testProbs_race, testProbs_race$Race), function(subdata) {
@@ -621,6 +643,10 @@ print(ggroc_combined)
 
 
 ## Racial-Gender Fairness 
+
+The generalizability of the model is further examined by considering not only race but also the intersection of race and gender. The fairness across these intersectional groups is critical, as it may reveal subtle biases not apparent when examining race alone. 
+
+From the following chart we can find that the group of black male has the highest frequency of recidivism, while the lowest recidivism frequency appears to the group of black female.
 
 ```{r}
 
@@ -675,6 +701,8 @@ testProbs_race_gender <-
              probs = predict(reg.norace_gender, recidivismTest, type = "response"),
              Race_Gender = recidivismTest$race_gender)
 ```
+
+And then comparing the observation and the predicted result from our model with the breakdown of race-gender groups, the plot below uncovers biases that might affect specific intersectional groups, such as Black Females, Black Male and White Males, which are the groups that are over predicted as recidivism by our model.
 
 ```{r fig.width=12}
 mutate(testProbs_race_gender, predClass = ifelse(probs >= .5, 1, 0)) %>%
@@ -753,6 +781,14 @@ iterateThresholds <- function(data, observedClass, predictedProbs, group) {
 }
 ```
 
+In the following breakdown plot by confusion matrix, the model exhibits a similar accuracy for the 4 groups with a relatively lower accuracy rate for while female, which means the model would preform worse in predicting white female's recidivism.
+
+**False Positive**:For male, especially black male, the model has a higher false positive rate, suggesting a tendency to over-predict recidivism. 
+
+**False Negative**: The higher false negative rate for black and white female indicates a tendency to under-predict recidivism. 
+
+In the meantime the model performs better in correctly identifying females especially black females who will not recidivate and predicting recidivism for males. 
+
 ```{r}
 testProbs_Race_Gender.thresholds <- 
   iterateThresholds(data=testProbs_race_gender, observedClass = class, 
@@ -768,6 +804,10 @@ filter(testProbs_Race_Gender.thresholds, Threshold == .5)  %>%
            subtitle = "50% threshold", x = "Outcome",y = "Rate") +
       theme_minimal() + theme(axis.text.x = element_text(angle = 0, hjust = 1)) 
 ```
+
+
+The ROC curves demonstrate the model's performance in distinguishing between recidivism outcomes for different race-gender groups. The AUC values are all relatively similar, with Black Females having a marginally higher AUC, indicating the model's slightly better performance for this group. Overall, the model shows consistent discriminative ability across these categories.
+
 ```{r}
 # Calculate the ROC curve and AUC for each race
 roc_list <- lapply(split(testProbs_race_gender, testProbs_race_gender$Race_Gender), function(subdata) {
@@ -800,6 +840,7 @@ for (i in seq_along(roc_list)) {
 print(ggroc_combined)
 ```
 
+In summary, while the model demonstrates a reasonable level of overall discriminative ability as reflected by the ROC curves, Black Males are subject to the model's over-prediction bias. Conversely, the model shows a better predictive accuracy for Black Females, suggesting they are the group for whom the model performs best. This nuanced performance warrants a careful review of the model to ensure equitable outcomes across race and gender intersections.
 
 #  Cost-Benefit Analysis 
 
@@ -876,9 +917,11 @@ cost_benefit_table <- testProbs %>%
 kable(cost_benefit_table, caption = "Cost/Benefit Analysis") %>%
   kable_styling()
 ```
+
 The cost-benefit analysis table and corresponding graphs provide a stark visualization of the economic impact of recidivism predictions at varying thresholds. In the analysis, the number of true negatives and true positives dominates the count of outcomes, indicating a predictive model reasonably attuned to actual outcomes.
 
 With true negatives, we witness a substantial benefit, as these cases represent individuals correctly predicted not to recidivate, saving the system the cost of incarceration and the associated lost productivity. Conversely, the costliest scenario emerges from false positives. 
+
 ```{r}
 iterateThresholds <- function(data) {
   x <- 0.01
@@ -928,6 +971,7 @@ whichThreshold %>%
   theme_minimal() +
   guides(colour=guide_legend(title = "Confusion Matrix")) 
 ```
+
 As seen in the previous figure and in figure 8, revenue begins to normalize or flatten out at 0.75 This means that if as a department we want to maximize our budget, we should only allocate to those in the thresholds between .75 to 1.
 
 ```{r}
@@ -957,6 +1001,19 @@ whichThreshold_revenue <-
 # Conclusion
 
 
+In conclusion, the analysis shows a model that is adept at identifying individuals who are likely to recidivate, specifically benefiting community safety and economic planning. It effectively captures the true positive rates—those who are likely to benefit from interventions—underscoring its utility from a social stability perspective.
+
+However, the model struggles with false positives, which could lead to unnecessary social and economic burdens, especially among certain demographic groups. The disproportionate impact on Black Males, in particular, highlights an area for immediate review and adjustment.
+
+For a more balanced approach that maximizes the model’s strengths and minimizes its weaknesses, it is essential to consider:
+
+1. Reevaluating the model parameters and integrating a broader range of data points, such as spatial characteristics, to refine its predictive accuracy.
+
+2. Implementing strategies to mitigate the potential economic impacts of the model's current limitations, such as targeted outreach and support for those wrongly identified as high risk for recidivism.
+
+3. Ensuring constant monitoring and adjustment of the model to adapt to dynamic social factors and economic conditions, thus ensuring its continued relevance and fairness.
+
+Such steps will ensure that the model does not just serve as a predictive tool but also as a catalyst for constructive interventions, aligning with the overarching goals of community development and economic sustainability.
 
 
 
