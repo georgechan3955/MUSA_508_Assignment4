@@ -71,6 +71,7 @@ recidivism <- recidivism %>%
 
 # Exploratory Analysis - Recidivism
 
+The dependent variable racidivism within 3 years seems to have more 'true' data than 'false' data, which would potentially add biases to the following regression model, since we are focusing on the positive true part, and it will also affect its generalization by focusing disproportionately on the positive outcomes.
 
 ```{r cache = TRUE, warning = FALSE, message = FALSE}
 ggplot(data = recidivism) +
