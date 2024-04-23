@@ -803,7 +803,7 @@ filter(testProbs_Race_Gender.thresholds, Threshold == .3)  %>%
 ```
 
 
-The ROC curves demonstrate the model's performance in distinguishing between recidivism outcomes for different race-gender groups. The AUC values are all relatively similar, with Black Females having a marginally higher AUC, indicating the model's slightly better performance for this group. Overall, the model shows consistent discriminative ability across these categories.
+The ROC curves demonstrate the model's performance in distinguishing between recidivism outcomes for different race-gender groups. The AUC values are all relatively similar, with White Male having a marginally higher AUC, indicating the model's slightly better performance for this group. Overall, the model shows consistent discriminative ability across these categories.
 
 ```{r}
 # Calculate the ROC curve and AUC for each race
@@ -837,7 +837,7 @@ for (i in seq_along(roc_list)) {
 print(ggroc_combined)
 ```
 
-In summary, while the model demonstrates a reasonable level of overall discriminative ability as reflected by the ROC curves, Black Males are subject to the model's over-prediction bias. Conversely, the model shows a better predictive accuracy for Black Females, suggesting they are the group for whom the model performs best. This nuanced performance warrants a careful review of the model to ensure equitable outcomes across race and gender intersections.
+In summary, while the model demonstrates a reasonable level of overall discriminative ability as reflected by the ROC curves, **Black Males** are subject to the model's over-prediction bias. Conversely, the model shows a better predictive accuracy for **White Male**, suggesting they are the group for whom the model performs best. This nuanced performance warrants a careful review of the model to ensure equitable outcomes across race and gender intersections.
 
 #  Cost-Benefit Analysis 
 
