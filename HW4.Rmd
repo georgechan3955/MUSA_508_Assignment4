@@ -308,21 +308,21 @@ anova_results %>%
 
 We then fit a logistic regression containing the following variables: 
 
-Gender
+Gender: Male or Female
 
-Race
+Race: Black or White
 
 Age_at_release
 
-Dependents
+Dependents: How many dependents the person have
 
-Supervision_level_first
+Supervision_level_first: Supervision Level
 
 Education_level
 
 Prison_years
 
-Prison_offense
+Prison_offense: Type of Prison Offense
 
 Violations
 
@@ -364,11 +364,11 @@ Prior_revocations_parole
 
 Delinquency_reports
 
-Residence_changes
+Residence_changes: How many times has the person changed the residence
 
 Violations_instruction
 
-We randomly divided our dataset into a training set comprising 65% of the data and a testing set consisting of the remaining 35%. Our analysis revealed that certain variables, including age, specific job categories, contact methods, the month of last contact, outcomes of previous campaigns, the unemployment rate, and consumer price and confidence indices, are significantly correlated with recidivism, each showing a p-value of less than 0.05. Although we experimented with categorizing age and job numbers to generate new variables, this approach reduced the model's accuracy. Consequently, we decided to retain the original variables for our analysis
+We randomly divided our dataset into a training set comprising 65% of the data and a testing set consisting of the remaining 35%. Our analysis revealed that certain variables, including age, specific job categories, contact methods, the month of last contact, outcomes of previous campaigns, the unemployment rate, and consumer price and confidence indices, are significantly correlated with recidivism, each showing a p-value of less than 0.05. Although we experimented with categorizing age and job numbers to generate new variables, this approach reduced the model's accuracy. Consequently, we decided to retain the original variables for our analysis.
 
 
 ## Feature Engineering
@@ -405,7 +405,17 @@ trainIndex <- createDataPartition(y = paste(recidivism$race) , p = .65,
 
 
 
-Based on the result, we can tell that : 
+Based on the result, we can tell that:
+
+
+The profile of an individual who is more likely to reoffend, as shaped by the logistic regression analysis, would feature a **male**, likely **white**, who is younger in age, specifically **under 48 years old at the time of release from incarceration**. The likelihood of committing another crime diminishes significantly with age, with the lowest probability of recidivism among those who are 48 or older.
+
+This individual's past is marked by criminal behavior, with a record that may include **drug or property crime convictions**, which are associated with a higher risk of reoffending. Interestingly, while a history with one prior felony arrest seems to lower the chance of recidivism, an accumulation of misdemeanor arrests indicates a higher risk. **Not adhering to supervision condition**s also points to a greater probability of reoffending, signaling challenges with compliance to legal and corrective measures.
+
+Stability, or the lack thereof, plays a critical role in this individual's life. **Stable employment** emerges as a significant factor that reduces the risk of reoffending, highlighting the role that consistent and meaningful work plays in rehabilitation and reintegration into society. In contrast, **frequent changes in residence** are linked to an increased risk of reoffending, which may reflect broader issues related to personal and societal stability.
+
+Additionally, **gang affiliation** seems to be an important element of this profile. Choosing not to associate with gangs correlates with a lower likelihood of committing another crime. The predictive power of gang non-affiliation in this context could be related to the individual distancing themselves from environments and relationships that may foster criminal behavior.
+
 
 ```{r}
 recidivismTrain <- recidivism[ trainIndex,]
@@ -448,9 +458,14 @@ kable(coefficients_table %>% select(-significance, -`Pr(>|z|)`), align = "r") %>
 
 ```
 
+
+Male,white,One delinquency report, with prior parole revocations,
+Frequent residence changes increase the likelihood of reoffending (OR = 1.4772 for 3 or more changes).
+
+
 ```{r}
-OR <- exp(coefficients(recidivismModel)) #odds ratio (exponentiated coefficients)
-OR
+#OR <- exp(coefficients(recidivismModel)) #odds ratio (exponentiated coefficients)
+#OR
 ```
 
 Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
@@ -1118,6 +1133,8 @@ whichThreshold_revenue <-
 
 
 In conclusion, the analysis shows a model that is adept at identifying individuals who are likely to recidivate, specifically benefiting community safety and economic planning. It effectively captures the true positive rates—those who are likely to benefit from interventions—underscoring its utility from a social stability perspective.
+
+Based on the model, the profile of individuals more likely to commit a crime again includes those who are male, younger, with a higher number of jobs per year, a history of drug use, parole revocations, and frequent residence changes. Additionally, a history of misdemeanor arrests and certain types of prior convictions (like drug and property crimes) increase the odds of recidivism. Stable employment, non-gang affiliation, and serving longer prison sentences are associated with lower odds of reoffending. 
 
 However, the model struggles with false positives, which could lead to unnecessary social and economic burdens, especially among certain demographic groups. The disproportionate impact on Black Males, in particular, highlights an area for immediate review and adjustment.
 
