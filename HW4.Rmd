@@ -1,6 +1,6 @@
 ---
 title: "HW4"
-author: "Xiayuanshan Gao, Jiahang Li, Yuhao Chen"
+author: "Xiayuanshan Gao, Jiahang Li, George Chen"
 date: "2024-04-17"
 output: 
   html_document:
@@ -37,6 +37,13 @@ palette2 <- c("#6baed6","#08519c")
 
 # Intro
 
+In this project, we develop a model to accurately forecast the likelihood that someone convicted of a crime will commit another crime, also known as recidivism. Recidivism is a critical issue in criminal justice, with significant implications for policy-making, rehabilitation programs, and community safety. Our dependent variable would focus on recidivism within three years.
+
+The dataset includes a variety of demographic, socio-economic, and legal variables, such as age at release, gender, race, education level, the nature of the offense, and several others. These features are important in understanding the patterns that may potentially affect individuals to re-commit crime. 
+
+Also, exploratory data analysis, we are able to discover some initial patterns and their relationships with recidivism outcomes. Next includes with statistical testing, feature engineering, and the development of logistic regression models with a threshold at 0.3 to capture the dynamics of recidivism.
+
+Moreover, we also include the ethical considerations of predictive modeling in criminal justice, mainly focusing on different demographic groups. By evaluating the model’s performance across these groups, we are capable to identify potential biases and ensure that our predictions do not perpetuate inequalities.
 
 
 ```{r cars}
@@ -75,6 +82,9 @@ ggplot(data = recidivism) +
 ```
 
 ## Categorical Variables
+
+The dependent variable racidivism within 3 years seems to have more 'true' data than 'false' data, which would potentially add biases to the following regression model, since we are focusing on the positive true part, and it will also affect its generalization by focusing disproportionately on the positive outcomes.
+
 
 ```{r fig.height=12, fig.width=12, message=FALSE, warning=FALSE, cache=TRUE}
 cat_var <- recidivism %>%
@@ -2281,6 +2291,8 @@ whichThreshold_revenue <-
 
 In conclusion, the analysis shows a model that is adept at identifying individuals who are likely to recidivate, specifically benefiting community safety and economic planning. It effectively captures the true positive rates—those who are likely to benefit from interventions—underscoring its utility from a social stability perspective.
 
+In sum, the individual most likely to reoffend, as painted by the statistical model, is one who struggles with a blend of personal, legal, and socio-economic factors. Male gender, a younger age, a specific race, a history of certain types of offenses, difficulties with legal compliance, unstable employment, and frequent residential moves form the mosaic of characteristics that align with a higher propensity for recidivism. Conversely, factors such as older age, steady employment, and disassociation from gangs seem to be protective against the likelihood of reoffending.
+
 However, the model struggles with false positives, which could lead to unnecessary social and economic burdens, especially among certain demographic groups. The disproportionate impact on Black Males, in particular, highlights an area for immediate review and adjustment.
 
 For a more balanced approach that maximizes the model’s strengths and minimizes its weaknesses, it is essential to consider:
@@ -2292,6 +2304,9 @@ For a more balanced approach that maximizes the model’s strengths and minimize
 3. Ensuring constant monitoring and adjustment of the model to adapt to dynamic social factors and economic conditions, thus ensuring its continued relevance and fairness.
 
 Such steps will ensure that the model does not just serve as a predictive tool but also as a catalyst for constructive interventions, aligning with the overarching goals of community development and economic sustainability.
+
+
+
 
 
 
