@@ -35,7 +35,16 @@ palette4 <- c("#D2FBD4","#92BCAB","#527D82","#123F5A")
 palette2 <- c("#6baed6","#08519c")
 ```
 
-# Intro
+# Introduction
+
+
+In this project, we develop a model to accurately forecast the likelihood that someone convicted of a crime will commit another crime, also known as recidivism. Recidivism is a critical issue in criminal justice, with significant implications for policy-making, rehabilitation programs, and community safety. Our dependent variable would focus on recidivism within three years.
+
+The dataset includes a variety of demographic, socio-economic, and legal variables, such as age at release, gender, race, education level, the nature of the offense, and several others. These features are important in understanding the patterns that may potentially affect individuals to re-commit crime. 
+
+Also, exploratory data analysis, we are able to discover some initial patterns and their relationships with recidivism outcomes. Next includes with statistical testing, feature engineering, and the development of logistic regression models with a threshold at 0.3 to capture the dynamics of recidivism.
+
+Moreover, we also include the ethical considerations of predictive modeling in criminal justice, mainly focusing on different demographic groups. By evaluating the model’s performance across these groups, we are capable to identify potential biases and ensure that our predictions do not perpetuate inequalities.
 
 
 
