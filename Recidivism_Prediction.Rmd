@@ -519,13 +519,16 @@ pROC::auc(testProbs$Outcome, testProbs$Probs) # AUC: .73
 The Confusion Matrix shows the rate at which we got True Positives (aka Sensitivity), False Positives, True Negatives (aka Specificity) and False Negatives for the 30% threshold.
 
 In this case,
-* True Positives: Predicted correctly the individuals who committed recidivism.
-* False Positives: We predicted a recidivism but the crime did not recidivate.
-* True Negatives: Predicted correctly the individuals who did not commit recidivism.
-* False Negatives: We predicted no recidivism but the crime did recidivate.
 
-This analysis prioritizes sensitivity, aiming to predict the likelihood of recidivism accurately. Our model achieves a high sensitivity rate of 0.994 and a lower specificity of 0.31. This outcome is acceptable because, in this context, prioritizing true positive predictions is crucial for minimizing losses and reducing social costs.
+**True Positives:** The bottom right cell (3753) represents the number of correct predictions that an outcome is the positive class ("1"). It means: predicted correctly the individuals who committed recidivism.
 
+**False Positives: ** The top right cell (214) indicates the number of incorrect predictions where the outcome is predicted as the positive class ("1") but is actually the negative class ("0"). It means: We predicted a recidivism but the crime did not recidivate.
+
+**True Negatives: ** The top left cell (900) indicates the number of correct predictions that an outcome is not the positive class ("0"). Here, it's the number of times the model correctly predicted the negative class. It means: predicted correctly the individuals who did not commit recidivism.
+
+**False Negatives: ** The bottom left cell (1949) shows the number of incorrect predictions where the outcome is predicted as the negative class ("0") but is actually the positive class ("1"). It means: we predicted no recidivism but the crime did reoffend.
+
+Our model accuracy is 0.68. This analysis prioritizes sensitivity, aiming to predict the likelihood of recidivism accurately. Our model achieves a sensitivity rate of 0.31 and a specificity of 0.95. a sensitivity of 0.31 means that 31% of individuals who do reoffend (the true positives) are correctly identified by the model. A specificity of 0.95 means that 95% of individuals who do not reoffend (the true negatives) are correctly identified by the model. This outcome is acceptable because, in this context, prioritizing true negative predictions is crucial for minimizing losses and reducing social costs.
 ```{r}
 testProbs <- 
   testProbs %>%
