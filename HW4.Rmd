@@ -576,7 +576,7 @@ dplyr::select(cvFit$resample, -Resample) %>%
 
 # Generalizability
 
-This section contrasts observed and predicted recidivism rates given the 50% threshold, focusing on the implications for racial and racial-gender fairness.
+This section contrasts observed and predicted recidivism rates given the 30% threshold, focusing on the implications for racial and racial-gender fairness.
 
 ## Racial Fairness
 
@@ -618,7 +618,7 @@ testProbs_race <-
 Furthermore, when comparing observed and predicted recidivism rates by race, the model appears to predict higher rates for both Black and White groups, with a slightly larger disparity for Black individuals, which means the recidivism among black individuals are over-predict.
 
 ```{r}
-mutate(testProbs_race, predClass = ifelse(probs >= .5, 1, 0)) %>%
+mutate(testProbs_race, predClass = ifelse(probs >= .3, 1, 0)) %>%
   group_by(Race) %>%
   summarize(Observed.recidivism = sum(class) / n(),
             Predicted.recidivism = sum(predClass) / n()) %>%
@@ -711,7 +711,7 @@ testProbs_race.thresholds <-
   iterateThresholds(data=testProbs_race, observedClass = class, 
                     predictedProbs = probs, group = Race)
 
-filter(testProbs_race.thresholds, Threshold == .5)  %>%
+filter(testProbs_race.thresholds, Threshold == .3)  %>%
   dplyr::select(Accuracy, Race, starts_with("Rate")) %>%
   gather(Variable, Value, -Race) %>%
     ggplot(aes(Variable, Value, fill = Race)) +
@@ -817,10 +817,10 @@ testProbs_race_gender <-
              Race_Gender = recidivismTest$race_gender)
 ```
 
-And then comparing the observation and the predicted result from our model with the breakdown of race-gender groups, the plot below uncovers biases that might affect specific intersectional groups, such as Black Male and White Males, which are the groups that are over predicted as recidivism by our model.
+And then comparing the observation and the predicted result from our model with the breakdown of race-gender groups, the plot below uncovers that all groups are overly predicted, and it is hard to observe a siginicant bias on one group.
 
 ```{r fig.width=12}
-mutate(testProbs_race_gender, predClass = ifelse(probs >= .5, 1, 0)) %>%
+mutate(testProbs_race_gender, predClass = ifelse(probs >= .3, 1, 0)) %>%
   group_by(Race_Gender) %>%
   summarize(Observed.recidivism = sum(class) / n(),
             Predicted.recidivism = sum(predClass) / n()) %>%
@@ -900,7 +900,7 @@ In the following breakdown plot by confusion matrix, the model exhibits a simila
 
 **False Positive**:For male, especially black male, the model has a higher false positive rate, suggesting a tendency to over-predict recidivism. 
 
-**False Negative**: The higher false negative rate for black and white female indicates a tendency to under-predict recidivism. 
+**False Negative**: The higher false negative rate for black and white female, especially black female indicates a tendency to under-predict recidivism. 
 
 In the meantime the model performs better in correctly identifying females especially black females who will not recidivate and predicting recidivism for males. 
 
@@ -909,7 +909,7 @@ testProbs_Race_Gender.thresholds <-
   iterateThresholds(data=testProbs_race_gender, observedClass = class, 
                     predictedProbs = probs, group = Race_Gender)
 
-filter(testProbs_Race_Gender.thresholds, Threshold == .5)  %>%
+filter(testProbs_Race_Gender.thresholds, Threshold == .3)  %>%
   dplyr::select(Accuracy, Race_Gender, starts_with("Rate")) %>%
   gather(Variable, Value, -Race_Gender) %>%
     ggplot(aes(Variable, Value, fill = Race_Gender)) +
