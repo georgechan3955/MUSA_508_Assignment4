@@ -1,5 +1,5 @@
 ---
-title: "HW4"
+title: "Recidivism perdiction"
 author: "Xiayuanshan Gao, Jiahang Li, George Chen"
 date: "2024-04-17"
 output: 
@@ -35,7 +35,7 @@ palette4 <- c("#D2FBD4","#92BCAB","#527D82","#123F5A")
 palette2 <- c("#6baed6","#08519c")
 ```
 
-# Intro
+# Introduction
 
 In this project, we develop a model to accurately forecast the likelihood that someone convicted of a crime will commit another crime, also known as recidivism. Recidivism is a critical issue in criminal justice, with significant implications for policy-making, rehabilitation programs, and community safety. Our dependent variable would focus on recidivism within three years.
 
@@ -50,7 +50,7 @@ Moreover, we also include the ethical considerations of predictive modeling in c
 recidivism <- 
   read.socrata("https://data.ojp.usdoj.gov/Courts/NIJ-s-Recidivism-Challenge-Full-Dataset/ynf5-u8nk")
 recidivism <- recidivism %>%
-   mutate(recidivism_within_3years_numreic = case_when(
+   mutate(recidivism_within_3years_numeric = case_when(
     recidivism_within_3years == "true" ~ 1,
     recidivism_within_3years == "false" ~ 0,
     TRUE ~ NA_integer_  # Handles any unexpected values
@@ -69,6 +69,7 @@ recidivism <- recidivism %>%
 
 # Exploratory Analysis - Recidivism
 
+The dependent variable racidivism within 3 years seems to have more 'true' data than 'false' data, which would potentially add biases to the following regression model, since we are focusing on the positive true part, and it will also affect its generalization by focusing disproportionately on the positive outcomes.
 
 ```{r cache = TRUE, warning = FALSE, message = FALSE}
 ggplot(data = recidivism) +
@@ -83,8 +84,7 @@ ggplot(data = recidivism) +
 
 ## Categorical Variables
 
-The dependent variable racidivism within 3 years seems to have more 'true' data than 'false' data, which would potentially add biases to the following regression model, since we are focusing on the positive true part, and it will also affect its generalization by focusing disproportionately on the positive outcomes.
-
+The figures presented here display the categorical variables within our dataset. Many of the selected variables reveal varying degrees of differences in the likelihood of individuals recommitting crimes. However, while these visual differences suggest potential patterns, they are not sufficient to confirm significant differences statistically. We need to include statistical testing methods such as chi-square and ANOVA tests. These methods will allow us to determine the statistical significance of the observed differences, providing a stronger evidence for our conclusions.
 
 ```{r fig.height=12, fig.width=12, message=FALSE, warning=FALSE, cache=TRUE}
 cat_var <- recidivism %>%
@@ -131,12 +131,10 @@ print(cat_var)
 ```
 
 
-
-
-
-
-
 ## Chi square
+
+The chi-square test is used to examine whether there's a significant association between each categorical variable and the dependent variable. Variables such as Gender, Race, Age at Release, Supervision Level First all show a very small p-value , which indicates a highly significant association with recidivism. In the Chi-square table, most of the variables we choose have siginificant association with the dependent variable.
+
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 cat_var <- recidivism %>%
   select(recidivism_within_3years, gender, race, age_at_release, supervision_level_first, education_level, prison_offense, prison_years, violations)
@@ -189,6 +187,7 @@ kable(chi_square_results, col.names = c("Degrees of Freedom", "Chi-Squared", "P-
 ```
 
 ## Numeric Variables
+The following figures are bar charts that represents numeric variables within the dataset.
 ```{r cache = TRUE, warning = FALSE, message = FALSE,fig.width=10, fig.height=10}
 numeric_var <- recidivism %>% 
   select(recidivism_within_3years, supervision_risk_score_first, percent_days_employed, jobs_per_year, avg_days_per_drugtest, drugtests_thc_positive, drugtests_meth_positive,drugtests_cocaine_positive)
@@ -221,8 +220,7 @@ numeric_var %>%
 ```
 
 
-
-
+The figures below display the distribution of numeric variables with respect to recidivism, our dependent variable. Similar to the categorical case, it is challenging to discern significant differences between each variable just by visual inspection. Consequently, we employed the ANOVA test to determine whether the numeric variables within the dataset have a significant association with recidivism.
 
 ```{r fig.height=10, fig.width=16, message=FALSE, warning=FALSE, cache=TRUE}
 numeric_var %>%
@@ -253,6 +251,7 @@ numeric_var %>%
 
 
 ## ANOVA TEST
+For Anova table, Each row in the table corresponds to a different variable, listing its respective degrees of freedom, the sum of squares, mean squares, F value, and the associated p-value. Most of the variables are strongly associated with the recidivism except for the 'Avg Days Per Drugtest' does not seem to have a significant association.
 
 ```{r}
 numeric_var <- recidivism %>%
@@ -430,9 +429,9 @@ Additionally, **gang affiliation** seems to be an important element of this prof
 recidivismTrain <- recidivism[ trainIndex,]
 recidivismTest  <- recidivism[-trainIndex,]
 
-recidivismModel <- glm(recidivism_within_3years_numreic ~ .,
+recidivismModel <- glm(recidivism_within_3years_numeric ~ .,
                   data=recidivismTrain %>% 
-                    dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction), family="binomial" (link="logit"))
+                    dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction), family="binomial" (link="logit"))
 
 # Load necessary libraries
 library(dplyr)
@@ -480,7 +479,7 @@ Frequent residence changes increase the likelihood of reoffending (OR = 1.4772 f
 Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
 
 ```{r}
-testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numreic), Probs = predict(recidivismModel, recidivismTest, type= "response"))
+testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numeric), Probs = predict(recidivismModel, recidivismTest, type= "response"))
 head(testProbs)
 ```
 
@@ -621,12 +620,12 @@ recidivism %>%
 
 
 ```{r}
-reg.noRace <- glm(recidivism_within_3years_numreic ~ ., data = 
-                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
+reg.noRace <- glm(recidivism_within_3years_numeric ~ ., data = 
+                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numeric,gender,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
-reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data = 
-                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
+reg.withRace <- glm(recidivism_within_3years_numeric ~ ., data = 
+                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
 ```
@@ -634,7 +633,7 @@ reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data =
 
 ```{r}
 testProbs_race <- 
-  data.frame(class = recidivismTest$recidivism_within_3years_numreic,
+  data.frame(class = recidivismTest$recidivism_within_3years_numeric,
              probs = predict(reg.noRace, recidivismTest, type = "response"),
              Race = recidivismTest$race)
 ```
@@ -824,19 +823,19 @@ recidivismTest  <- recidivism[-trainIndex,]
 
 
 ```{r}
-reg.norace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
-                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
+reg.norace_gender <- glm(recidivism_within_3years_numeric ~ ., data = 
+                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
-reg.withrace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
-                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
+reg.withrace_gender <- glm(recidivism_within_3years_numeric ~ ., data = 
+                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
 ```
 
 ```{r}
 testProbs_race_gender <- 
-  data.frame(class = recidivismTest$recidivism_within_3years_numreic,
+  data.frame(class = recidivismTest$recidivism_within_3years_numeric,
              probs = predict(reg.norace_gender, recidivismTest, type = "response"),
              Race_Gender = recidivismTest$race_gender)
 ```
@@ -1217,7 +1216,7 @@ Moreover, we also include the ethical considerations of predictive modeling in c
 recidivism <- 
   read.socrata("https://data.ojp.usdoj.gov/Courts/NIJ-s-Recidivism-Challenge-Full-Dataset/ynf5-u8nk")
 recidivism <- recidivism %>%
-   mutate(recidivism_within_3years_numreic = case_when(
+   mutate(recidivism_within_3years_numeric = case_when(
     recidivism_within_3years == "true" ~ 1,
     recidivism_within_3years == "false" ~ 0,
     TRUE ~ NA_integer_  # Handles any unexpected values
@@ -1583,9 +1582,9 @@ Based on the result, we can tell that :
 recidivismTrain <- recidivism[ trainIndex,]
 recidivismTest  <- recidivism[-trainIndex,]
 
-recidivismModel <- glm(recidivism_within_3years_numreic ~ .,
+recidivismModel <- glm(recidivism_within_3years_numeric ~ .,
                   data=recidivismTrain %>% 
-                    dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction), family="binomial" (link="logit"))
+                    dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction), family="binomial" (link="logit"))
 
 
 library(dplyr)
@@ -1628,7 +1627,7 @@ OR
 Visually we now can begin comparing the predictions of recidivism. A negative or 0 value means that there is no recidivism, while a positive or 1 value means that there is recidivism. Strong models will have a peak closer to 0 for the negatives (no recidivism), and a peak closer to 1 for the positives (recidivism). In the following graph we can see that our model is better at prediciting the positives rather than the negatives.
 
 ```{r}
-testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numreic), Probs = predict(recidivismModel, recidivismTest, type= "response"))
+testProbs <- data.frame(Outcome = as.factor(recidivismTest$recidivism_within_3years_numeric), Probs = predict(recidivismModel, recidivismTest, type= "response"))
 head(testProbs)
 ```
 
@@ -1769,12 +1768,12 @@ recidivism %>%
 
 
 ```{r}
-reg.noRace <- glm(recidivism_within_3years_numreic ~ ., data = 
-                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
+reg.noRace <- glm(recidivism_within_3years_numeric ~ ., data = 
+                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numeric,gender,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
-reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data = 
-                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
+reg.withRace <- glm(recidivism_within_3years_numeric ~ ., data = 
+                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
 ```
@@ -1782,7 +1781,7 @@ reg.withRace <- glm(recidivism_within_3years_numreic ~ ., data =
 
 ```{r}
 testProbs_race <- 
-  data.frame(class = recidivismTest$recidivism_within_3years_numreic,
+  data.frame(class = recidivismTest$recidivism_within_3years_numeric,
              probs = predict(reg.noRace, recidivismTest, type = "response"),
              Race = recidivismTest$race)
 ```
@@ -1972,19 +1971,19 @@ recidivismTest  <- recidivism[-trainIndex,]
 
 
 ```{r}
-reg.norace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
-                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
+reg.norace_gender <- glm(recidivism_within_3years_numeric ~ ., data = 
+                    recidivismTrain %>% dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
-reg.withrace_gender <- glm(recidivism_within_3years_numreic ~ ., data = 
-                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numreic,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
+reg.withrace_gender <- glm(recidivism_within_3years_numeric ~ ., data = 
+                      recidivismTrain %>% dplyr::select(recidivism_within_3years_numeric,gender,race,age_at_release,dependents, supervision_level_first,education_level,prison_years,prison_offense,violations,supervision_risk_score_first, percent_days_employed,jobs_per_year,drugtests_thc_positive,drugtests_cocaine_positive, drugtests_meth_positive,gang_affiliated,prior_arrest_episodes_felony,prior_arrest_episodes_misd,prior_arrest_episodes_property,prior_conviction_episodes_6,prior_conviction_episodes_5,prior_conviction_episodes_4,prior_conviction_episodes_3,prior_conviction_episodes_2,prior_conviction_episodes_1,prior_revocations_probation,prior_revocations_parole,delinquency_reports,residence_changes,violations_instruction),
                 family = "binomial"(link = "logit"))
 
 ```
 
 ```{r}
 testProbs_race_gender <- 
-  data.frame(class = recidivismTest$recidivism_within_3years_numreic,
+  data.frame(class = recidivismTest$recidivism_within_3years_numeric,
              probs = predict(reg.norace_gender, recidivismTest, type = "response"),
              Race_Gender = recidivismTest$race_gender)
 ```
